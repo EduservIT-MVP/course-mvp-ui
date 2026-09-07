@@ -1,0 +1,72 @@
+import { downloadBlob } from "../lib/download"
+import { request, requestBlob } from "./client"
+import { isMockMode } from "./config"
+import { mockApi } from "./mockApi"
+import { ApiError } from "./errors"
+import { isPptArtifact, normalizeArtifact } from "./normalize"
+import { readSession } from "./session"
+
+function user() {
+  return readSession()?.user ?? null
+}
+
+export function findPptArtifact(course) {
+  if (!course) return null
+  if (course.ppt) return normalizeArtifact(course.ppt)
+  return (course.artifacts || []).map(normalizeArtifact).find(isPptArtifact) || null
+}
+
+async function downloadFromUrl(url, fallbackName, { signed = false } = {}) {
+  const result = await requestBlob(url, { auth: !signed })
+  return {
+    blob: result.blob,
+    filename: result.filename || fallbackName || "download",
+    mimeType: result.mimeType,
+  }
+}
+
+export const fileService = {
+  async list(courseId) {
+    if (isMockMode()) return mockApi.listArtifacts(user(), courseId).map(normalizeArtifact)
+    const payload = await request(`/courses/${courseId}/artifacts`)
+    const list = Array.isArray(payload) ? payload : payload?.artifacts || payload?.files || payload?.data || []
+    return list.map(normalizeArtifact)
+  },
+
+  async download(courseId, artifact) {
+    const file = normalizeArtifact(artifact)
+    if (!file) throw new ApiError("No file metadata was returned.")
+
+    const url = file.downloadUrl
+    if (url) {
+      const signed = /X-Amz-|Signature=|token=/i.test(url) || /^https?:/i.test(url)
+      return downloadFromUrl(url, file.name, { signed })
+    }
+
+    const artifactId = file.id || file.fileId
+    if (!artifactId) throw new ApiError("No file ID or download URL was provided.")
+
+    if (isMockMode()) return mockApi.downloadArtifact(user(), courseId, artifactId)
+    return requestBlob(`/courses/${courseId}/artifacts/${artifactId}/download`)
+  },
+
+  async downloadPpt(course) {
+    const ppt = findPptArtifact(course)
+    if (!ppt) throw new ApiError("No PPT artifact is available yet.")
+    const file = await fileService.download(course.id, ppt)
+    await downloadBlob(file.blob, file.filename || ppt.name)
+    return file
+  },
+
+  async downloadAll(course) {
+    const files = course.artifacts?.length ? course.artifacts : await fileService.list(course.id)
+    if (!files.length) throw new ApiError("No generated files are available yet.")
+    const downloaded = []
+    for (const artifact of files) {
+      const file = await fileService.download(course.id, artifact)
+      await downloadBlob(file.blob, file.filename || artifact.name)
+      downloaded.push(file)
+    }
+    return downloaded
+  },
+}
