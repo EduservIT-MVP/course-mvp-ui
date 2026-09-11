@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
-import sparkles from "../assets/sparkles.svg"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import logo from "../assets/eduservit-logo.png"
 import Button from "../components/Button"
 import { isMockMode } from "../api/config"
 import { messageFromError } from "../api/errors"
@@ -35,9 +35,9 @@ export default function Login() {
     <div className="login-shell">
       <div className="brand">
         <div className="brand-mark">
-          <img src={sparkles} alt="" width={17} height={17} />
+          <img src={logo} alt="" width={40} height={40} />
         </div>
-        <p className="brand-name">CourseForge</p>
+        <p className="brand-name">EduServ IT</p>
       </div>
 
       <section className="brief-card login-card">
@@ -76,6 +76,10 @@ export default function Login() {
             {busy ? "Signing in…" : "Continue"}
           </Button>
         </form>
+
+        <p className="auth-switch">
+          New here? <Link to="/signup">Create an account</Link>
+        </p>
       </section>
     </div>
   )

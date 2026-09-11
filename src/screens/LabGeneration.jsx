@@ -3,12 +3,39 @@ import Button from "../components/Button"
 import Icon from "../components/Icon"
 import StatusBanner from "../components/StatusBanner"
 
+/** Always render criteria as a list of strings (never iterate a raw string). */
+function normalizeCriteria(raw) {
+  if (Array.isArray(raw)) {
+    return raw
+      .flatMap((item) => {
+        if (typeof item === "string") return [item]
+        if (item && typeof item === "object") return [item.text || item.label || item.title || ""]
+        return [String(item ?? "")]
+      })
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    return raw
+      .split(/\n|;/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function parseMinutes(time) {
+  if (!time) return 0
+  const match = String(time).match(/(\d+)/)
+  return match ? Number(match[1]) : 0
+}
+
+/**
+ * LAB_REVIEW — full lab plan from course.lab (API), then Approve / Regenerate.
+ * Binds only to the generated lab object — no local draft / leftover fixtures.
+ */
 export default function LabGeneration({
   lab,
-  tasks = [],
-  criteria = [],
-  onChange,
-  onBack,
   onGenerate,
   onRegenerate,
   busy,
@@ -18,6 +45,15 @@ export default function LabGeneration({
   canGenerate,
   canRegenerate,
 }) {
+  const plan = lab && typeof lab === "object" ? lab : {}
+  const tasks = Array.isArray(plan.tasks) ? plan.tasks : []
+  const criteria = normalizeCriteria(plan.criteria)
+  const scenario = plan.scenario || ""
+  const environment = plan.environment || ""
+  const assets = plan.assets || ""
+  const description = plan.useCase || plan.description || ""
+  const totalMinutes = tasks.reduce((sum, task) => sum + parseMinutes(task.time), 0)
+
   return (
     <section className="lab">
       <div className="lab-plan">
@@ -37,36 +73,58 @@ export default function LabGeneration({
         ) : null}
 
         {generating ? (
-          <StatusBanner
-            tone="busy"
-            title="Generating lab materials"
-            message="Lab code is being produced by the backend. This view will refresh when review is ready."
-          />
+          <StatusBanner tone="busy" title="Generating lab…" message="This updates when review is ready." />
         ) : null}
 
-        <div>
-          <h2>{lab.scenario || "Build an agent workflow"}</h2>
-          <p className="lede">
-            A guided lab that turns the presentation concepts into a working
-            product-research agent.
-          </p>
-        </div>
+        <header className="lab-plan-header">
+          <h2>{scenario || "Lab plan"}</h2>
+          {description && description !== scenario ? <p className="lede">{description}</p> : null}
+        </header>
 
-        <div className="task-list">
-          {tasks.map((task) => (
-            <article key={task.n} className="task">
-              <div className="task-marker">{task.n}</div>
-              <div>
-                <h3>{task.title}</h3>
-                <p>{task.detail}</p>
+        {(environment || assets) && !generating ? (
+          <div className="lab-meta">
+            {environment ? (
+              <div className="lab-meta-item">
+                <span className="lab-meta-label">Environment</span>
+                <span className="lab-meta-value">{environment}</span>
               </div>
-              <span className="task-time">{task.time}</span>
-            </article>
-          ))}
-        </div>
+            ) : null}
+            {assets ? (
+              <div className="lab-meta-item">
+                <span className="lab-meta-label">Assets provided</span>
+                <span className="lab-meta-value">{assets}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
-        {criteria.length ? (
-          <div className="criteria">
+        {scenario && !generating ? (
+          <section className="lab-section">
+            <h3>Scenario</h3>
+            <p>{scenario}</p>
+          </section>
+        ) : null}
+
+        {tasks.length && !generating ? (
+          <section className="lab-section">
+            <h3>Tasks</h3>
+            <div className="task-list">
+              {tasks.map((task, index) => (
+                <article key={task.n ?? index} className="task">
+                  <div className="task-marker">{task.n ?? index + 1}</div>
+                  <div>
+                    <h3>{task.title}</h3>
+                    <p>{task.detail}</p>
+                  </div>
+                  {task.time ? <span className="task-time">{task.time}</span> : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {criteria.length && !generating ? (
+          <section className="lab-section criteria">
             <h3>Success criteria</h3>
             {criteria.map((item) => (
               <div key={item} className="criterion">
@@ -74,55 +132,42 @@ export default function LabGeneration({
                 <span>{item}</span>
               </div>
             ))}
+          </section>
+        ) : null}
+
+        {!generating && !failed && !tasks.length && !criteria.length && !scenario ? (
+          <div className="brief-card">
+            <h3>No lab plan yet</h3>
+            <p className="hint">Generate or regenerate the lab to load the agent output.</p>
           </div>
         ) : null}
       </div>
 
       <aside className="lab-settings">
-        <h3>Lab settings</h3>
-        <label className="field">
-          Scenario
-          <input
-            value={lab.scenario}
-            disabled={generating}
-            onChange={(e) => onChange("scenario", e.target.value)}
-          />
-        </label>
-        <label className="field">
-          Environment
-          <select
-            value={lab.environment}
-            disabled={generating}
-            onChange={(e) => onChange("environment", e.target.value)}
-          >
-            <option>Browser workspace</option>
-            <option>Local IDE</option>
-            <option>Cloud notebook</option>
-          </select>
-        </label>
-        <label className="field">
-          Starter assets
-          <textarea
-            value={lab.assets}
-            disabled={generating}
-            onChange={(e) => onChange("assets", e.target.value)}
-          />
-        </label>
-        {error && !failed ? <p className="form-error">{error}</p> : null}
+        <div className="lab-summary">
+          <h3>Review summary</h3>
+          {totalMinutes ? (
+            <p>
+              <strong>{totalMinutes} min</strong> estimated
+            </p>
+          ) : null}
+          {environment ? <p className="lab-summary-badge">{environment}</p> : null}
+          <p className="hint">
+            Approve to generate the learner lab guide, or regenerate for a new lab plan from the
+            agent.
+          </p>
+        </div>
         <div className="actions">
           {canGenerate ? (
             <Button onClick={onGenerate} disabled={busy || generating}>
-              {busy ? "Submitting…" : "Generate lab guide →"}
+              {busy ? "Submitting…" : "Approve →"}
             </Button>
           ) : null}
           {canRegenerate ? (
             <Button variant="secondary" onClick={onRegenerate} disabled={busy || generating}>
-              Regenerate lab
+              Regenerate
             </Button>
           ) : null}
-          <Button variant="secondary" onClick={onBack}>
-            Back to slides
-          </Button>
         </div>
       </aside>
     </section>

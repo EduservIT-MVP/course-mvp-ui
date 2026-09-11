@@ -87,6 +87,11 @@ export function normalizeCourse(payload) {
   if (!course || typeof course !== "object") return course
   const artifacts = (course.artifacts || course.files || course.outputs || []).map(normalizeArtifact)
   const ppt = course.ppt || course.presentation || artifacts.find((item) => isPptArtifact(item))
+  const slideImages = Array.isArray(course.slideImages)
+    ? course.slideImages
+    : Array.isArray(course.slide_images)
+      ? course.slide_images
+      : []
   return {
     ...course,
     id: course.id || course.courseId || course.uuid,
@@ -97,6 +102,7 @@ export function normalizeCourse(payload) {
     guide: course.guide || course.labGuide,
     artifacts,
     ppt: ppt ? normalizeArtifact(ppt) : null,
+    slideImages,
     error: course.error || course.errorMessage || course.failureReason,
     failedScreen: course.failedScreen ?? course.failedStage ?? 0,
     stage: course.stage || course.currentStage || course.progressStage,

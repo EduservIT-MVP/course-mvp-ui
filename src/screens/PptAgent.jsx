@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import Button from "../components/Button"
 import StatusBanner from "../components/StatusBanner"
-import { usePptPreview } from "../hooks/usePptPreview"
-import { statusLabel, stageLabel } from "../workflow/states"
+import { useSlideImageCache } from "../hooks/useSlideImageCache"
 
+/**
+ * PPT_READY — preview pre-rendered slide PNGs; outline is a navigator only.
+ * Download still serves the real .pptx. Stable across agent swaps as long as
+ * course.slideImages[] + ppt artifact are populated before PPT_READY.
+ */
 export default function PptAgent({
   course,
   slideIndex,
   onSelectSlide,
   onRegenerate,
-  onRegenerateSlides,
-  onApprove,
   onDownloadPpt,
   onStartLab,
   busy,
@@ -18,51 +20,37 @@ export default function PptAgent({
   generating,
   failed,
   error,
-  canApprove,
   canRegenerate,
   canDownloadPpt,
   canStartLab,
   ppt,
-  summary,
 }) {
-  const preview = usePptPreview(course)
-  const slides = preview.slides
-  const slide = slides[slideIndex] || slides[0]
-  const ready = Boolean(slide) && !generating
-  const [tagged, setTagged] = useState(() => new Set())
-  const [prompt, setPrompt] = useState("")
+  const planSlides = course?.plan?.slides
+  const slideImages = course?.slideImages
 
-  const taggedList = useMemo(
-    () => slides.filter((item, index) => tagged.has(item.id ?? index)),
-    [slides, tagged],
-  )
+  const slides = useMemo(() => {
+    const plans = planSlides || []
+    const images = slideImages || []
+    if (images.length) {
+      return images.map((img, index) => ({
+        id: index + 1,
+        title: plans[index]?.title || plans[index]?.heading || `Slide ${index + 1}`,
+        url: img.url,
+      }))
+    }
+    return plans.map((item, index) => ({
+      id: item.id || index + 1,
+      title: item.title || item.heading || `Slide ${index + 1}`,
+      url: null,
+    }))
+  }, [planSlides, slideImages])
 
-  function toggleTag(id, index, event) {
-    event.stopPropagation()
-    const key = id ?? index
-    setTagged((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  function handleRegenerateTagged() {
-    const selected = taggedList.length
-      ? taggedList.map((item, index) => ({
-          id: item.id,
-          index: slides.findIndex((slideItem) => slideItem === item),
-        }))
-      : slide
-        ? [{ id: slide.id, index: slideIndex }]
-        : []
-    onRegenerateSlides?.({
-      slides: selected,
-      prompt: prompt.trim(),
-      notes: prompt.trim() || slide?.notes || "",
-    })
-  }
+  const imagePaths = useMemo(() => slides.map((s) => s.url).filter(Boolean), [slides])
+  const safeIndex = Math.min(Math.max(0, slideIndex || 0), Math.max(0, slides.length - 1))
+  const slide = slides[safeIndex]
+  const ready = Boolean(slides.length) && !generating
+  const image = useSlideImageCache(imagePaths, safeIndex)
+  const showPlaceholder = ready && !image.hasImage && !image.loading
 
   return (
     <section className="ppt">
@@ -81,136 +69,90 @@ export default function PptAgent({
         />
       ) : null}
 
-      {generating || preview.loading ? (
-        <StatusBanner
-          tone="busy"
-          title={preview.loading ? "Opening PPTX" : statusLabel(course?.status) || "Generating"}
-          message={preview.loading ? "Rendering the generated presentation file." : stageLabel(course)}
-        />
-      ) : null}
-
       <div className="status-row">
         <div>
-          <h2>
-            {generating
-              ? "Generating your slide deck"
-              : ready
-                ? "Your slide deck is ready"
-                : "Waiting for the plan"}
-          </h2>
-          <p>
-            {course?.title ? `${course.title}` : "Selected course"}
-            {course?.level ? ` · ${course.level}` : ""}
-            {course?.duration ? ` · ${course.duration}` : ""}
-            {ppt?.name ? ` · ${ppt.name}` : ""}
-          </p>
-          <p>
-            {generating
-              ? "Status is coming from the REST API. This screen updates when generation finishes."
-              : summary}
-          </p>
+          <h2>{course?.title || "Presentation"}</h2>
+          <p>{ppt?.name || `${slides.length || 0} slides`}</p>
         </div>
         <div className="actions">
-          {canRegenerate ? (
-            <Button variant="secondary" onClick={onRegenerate} disabled={busy || generating}>
-              {busy ? "Working…" : "Regenerate deck"}
-            </Button>
-          ) : null}
           {canDownloadPpt ? (
-            <Button onClick={onDownloadPpt} disabled={busy || generating || downloading}>
-              {downloading ? "Downloading…" : "Download PPT"}
-            </Button>
-          ) : null}
-          {canApprove ? (
-            <Button onClick={onApprove} disabled={busy || generating || !ready}>
-              {busy ? "Submitting…" : "Approve & generate PPT →"}
+            <Button variant="secondary" onClick={onDownloadPpt} disabled={busy || downloading || !ppt}>
+              {downloading ? "Downloading…" : "Download"}
             </Button>
           ) : null}
           {canStartLab ? (
-            <Button variant={canDownloadPpt ? "secondary" : "primary"} onClick={onStartLab} disabled={busy || generating}>
-              {busy ? "Submitting…" : "Generate lab →"}
+            <Button onClick={onStartLab} disabled={busy || !ppt || !(slideImages?.length)}>
+              {busy ? "Starting…" : "Generate lab →"}
             </Button>
           ) : null}
         </div>
       </div>
 
-      {generating || !slide ? (
+      {!ready ? (
         <div className="brief-card">
-          <h3>{generating ? "Generation in progress" : "No slides yet"}</h3>
-          <p className="hint">
-            {generating
-              ? "Leave this page open or come back later — progress is saved on the backend."
-              : "Generate a plan from the course brief to review slides here."}
-          </p>
+          <h3>No slides yet</h3>
         </div>
       ) : (
         <div className="review">
-          <aside className="outline">
-            <p className="panel-label">SLIDE OUTLINE</p>
-            <p className="hint">Tag slides to regenerate them with a prompt.</p>
-            {slides.map((item, index) => {
-              const key = item.id ?? index
-              const isTagged = tagged.has(key)
-              return (
-                <div
-                  key={key}
-                  className={`outline-item${index === slideIndex ? " is-active" : ""}${isTagged ? " is-tagged" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isTagged}
-                    aria-label={`Tag slide ${index + 1} for regeneration`}
-                    onChange={(event) => toggleTag(item.id, index, event)}
-                  />
-                  <button type="button" className="outline-select" onClick={() => onSelectSlide(index)}>
-                    <span className="outline-num">{String(item.id || index + 1).padStart(2, "0")}</span>
-                    <span className="outline-title">{item.title}</span>
-                  </button>
-                </div>
-              )
-            })}
+          <aside className="outline" aria-label="Slide outline">
+            {slides.map((item, index) => (
+              <button
+                key={`slide-${index}`}
+                type="button"
+                className={`outline-item${index === safeIndex ? " is-active" : ""}`}
+                onClick={() => onSelectSlide(index)}
+              >
+                <span className="outline-num">{String(index + 1).padStart(2, "0")}</span>
+                <span className="outline-title">{item.title}</span>
+              </button>
+            ))}
           </aside>
 
           <div className="preview-panel">
-            <article className="slide pptx-slide">
-              <p className="slide-kicker">{slide.kicker}</p>
-              {slide.images?.length ? (
-                <div className="pptx-media">
-                  {slide.images.map((src) => (
-                    <img key={src} src={src} alt="" />
-                  ))}
+            <article className={`pptx-frame${image.loading ? " is-rendering" : ""}`}>
+              {image.url ? (
+                <img
+                  className="pptx-slide-image"
+                  src={image.url}
+                  alt={slide?.title || `Slide ${safeIndex + 1}`}
+                  draggable={false}
+                />
+              ) : null}
+              {image.loading ? (
+                <div className="pptx-frame-loading" role="status" aria-live="polite">
+                  <span className="pptx-spinner" aria-hidden="true" />
+                  <span>Loading slide…</span>
                 </div>
               ) : null}
-              <div>
-                <h3>{slide.heading || slide.title}</h3>
-                <p className="pptx-body">{slide.body}</p>
-              </div>
-              <div className="accent-line" />
+              {showPlaceholder ? (
+                <div className="pptx-frame-empty">
+                  <p>{image.error ? "Could not load this slide." : "Slide preview unavailable."}</p>
+                  {canRegenerate ? (
+                    <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
+                      Regenerate
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </article>
-            <div className="notes">
-              <h4>SPEAKER NOTES</h4>
-              <p>{slide.notes || ppt?.label || "No speaker notes were returned."}</p>
-            </div>
-            <div className="notes regen-panel">
-              <h4>REGENERATE TAGGED SLIDE</h4>
-              <p className="hint">
-                {taggedList.length
-                  ? `${taggedList.length} slide${taggedList.length === 1 ? "" : "s"} tagged`
-                  : `No tag yet — current slide ${String(slide.id || slideIndex + 1).padStart(2, "0")} will be sent.`}
-              </p>
-              <label className="field">
-                Prompt / note
-                <textarea
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="Tell the PPT agent what to change on the tagged slide…"
-                />
-              </label>
+
+            <div className="pptx-nav">
               <Button
-                onClick={handleRegenerateTagged}
-                disabled={busy || generating || !canRegenerate || !prompt.trim()}
+                variant="secondary"
+                onClick={() => onSelectSlide(Math.max(0, safeIndex - 1))}
+                disabled={safeIndex <= 0 || image.loading}
               >
-                {busy ? "Sending…" : "Regenerate tagged slide"}
+                Prev
+              </Button>
+              <p>
+                {safeIndex + 1} / {slides.length}
+              </p>
+              <Button
+                variant="secondary"
+                onClick={() => onSelectSlide(Math.min(slides.length - 1, safeIndex + 1))}
+                disabled={safeIndex >= slides.length - 1 || image.loading}
+              >
+                Next
               </Button>
             </div>
           </div>

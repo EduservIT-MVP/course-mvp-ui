@@ -54,8 +54,17 @@ export const fileService = {
     const ppt = findPptArtifact(course)
     if (!ppt) throw new ApiError("No PPT artifact is available yet.")
     const file = await fileService.download(course.id, ppt)
-    await downloadBlob(file.blob, file.filename || ppt.name)
-    return file
+    const name = file.filename || ppt.name || "presentation.pptx"
+    if (!file.blob || file.blob.size < 64) {
+      throw new ApiError("PPT download returned an empty file.")
+    }
+    // Real PPTX is a ZIP (PK..). Reject JSON/stub payloads that were mislabeled.
+    const head = new Uint8Array(await file.blob.slice(0, 2).arrayBuffer())
+    if (head[0] !== 0x50 || head[1] !== 0x4b) {
+      throw new ApiError("PPT artifact is not a valid .pptx file yet. Try regenerating.")
+    }
+    await downloadBlob(file.blob, name)
+    return { ...file, filename: name }
   },
 
   async downloadAll(course) {

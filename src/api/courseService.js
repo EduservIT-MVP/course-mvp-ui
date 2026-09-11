@@ -28,4 +28,9 @@ export const courseService = {
     if (isMockMode()) return normalizeCourse(mockApi.updateCourse(user(), id, input))
     return normalizeCourse(await request(`/courses/${id}`, { method: "PATCH", body: input }))
   },
+
+  async remove(id) {
+    if (isMockMode()) return mockApi.deleteCourse(user(), id)
+    return request(`/courses/${id}`, { method: "DELETE" })
+  },
 }

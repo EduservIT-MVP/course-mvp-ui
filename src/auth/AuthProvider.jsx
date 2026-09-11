@@ -58,6 +58,14 @@ export function AuthProvider({ children }) {
     return payload
   }, [])
 
+  const signup = useCallback(async (credentials) => {
+    setError(null)
+    const payload = await authService.signup(credentials)
+    writeSession(payload)
+    setSession(payload)
+    return payload
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await authService.logout()
@@ -74,10 +82,11 @@ export function AuthProvider({ children }) {
       token: session?.token ?? null,
       error,
       login,
+      signup,
       logout,
       can: (permission) => can(session?.user, permission),
     }),
-    [ready, session, error, login, logout],
+    [ready, session, error, login, signup, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

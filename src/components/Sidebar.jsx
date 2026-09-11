@@ -1,17 +1,17 @@
 import { Link } from "react-router-dom"
-import sparkles from "../assets/sparkles.svg"
+import logo from "../assets/eduservit-logo.png"
 import check from "../assets/check.svg"
 import { STEPS } from "../data"
-import { statusLabel } from "../workflow/states"
+import { statusLabel, statusTone } from "../workflow/states"
 
 export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode = "workflow" }) {
   return (
     <aside className="sidebar">
       <Link to="/" className="brand brand-link">
         <div className="brand-mark">
-          <img src={sparkles} alt="" width={17} height={17} />
+          <img src={logo} alt="" width={40} height={40} />
         </div>
-        <p className="brand-name">CourseForge</p>
+        <p className="brand-name">EduServ IT</p>
       </Link>
 
       {mode === "workflow" ? (
@@ -48,7 +48,15 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
 
       <div className="project-status">
         <h2>{course?.title || (mode === "dashboard" ? "All courses" : "New course")}</h2>
-        <p>{course ? statusLabel(course.status) : "Choose a course to resume its current backend status."}</p>
+        <p>
+          {course ? (
+            <span className={`status-chip tone-${statusTone(course.status)}`}>
+              {statusLabel(course.status)}
+            </span>
+          ) : (
+            "New course"
+          )}
+        </p>
       </div>
     </aside>
   )

@@ -1,11 +1,11 @@
 export const WORKFLOW = {
+  // Must match backend /courses status strings exactly.
   SELECT_COURSE: "SELECT_COURSE",
   PLAN_GENERATING: "PLAN_GENERATING",
   PLAN_REVIEW: "PLAN_REVIEW",
   WAITING_FOR_APPROVAL: "WAITING_FOR_APPROVAL",
   PPT_GENERATING: "PPT_GENERATING",
   PPT_READY: "PPT_READY",
-  GENERATING: "PPT_GENERATING",
   LAB_GENERATING: "LAB_GENERATING",
   LAB_REVIEW: "LAB_REVIEW",
   LAB_GUIDE_GENERATING: "LAB_GUIDE_GENERATING",
@@ -14,6 +14,7 @@ export const WORKFLOW = {
   FAILED: "FAILED",
 }
 
+/** Statuses that should drive useCoursePolling. */
 export const GENERATING_STATUSES = new Set([
   WORKFLOW.PLAN_GENERATING,
   WORKFLOW.PPT_GENERATING,
@@ -22,7 +23,8 @@ export const GENERATING_STATUSES = new Set([
   WORKFLOW.REGENERATE,
 ])
 
-const SCREEN_BY_STATUS = {
+/** Sidebar step index (0–3). Prefer sidebarStepForCourse(course) from screens.js. */
+const SIDEBAR_STEP_BY_STATUS = {
   [WORKFLOW.SELECT_COURSE]: 0,
   [WORKFLOW.PLAN_GENERATING]: 1,
   [WORKFLOW.PLAN_REVIEW]: 1,
@@ -42,7 +44,7 @@ export function isGenerating(status) {
 
 export function screenForStatus(status, failedScreen = 0) {
   if (status === WORKFLOW.FAILED) return failedScreen
-  return SCREEN_BY_STATUS[status] ?? 0
+  return SIDEBAR_STEP_BY_STATUS[status] ?? 0
 }
 
 export function maxStepForStatus(status, failedScreen = 0) {
@@ -76,6 +78,25 @@ export function statusLabel(status) {
       return "Generation failed"
     default:
       return status || "In progress"
+  }
+}
+
+/** Visual tone for status chips (Dashboard / Sidebar). */
+export function statusTone(status) {
+  if (isGenerating(status)) return "busy"
+  switch (status) {
+    case WORKFLOW.COMPLETE:
+      return "success"
+    case WORKFLOW.FAILED:
+      return "error"
+    case WORKFLOW.PLAN_REVIEW:
+    case WORKFLOW.WAITING_FOR_APPROVAL:
+    case WORKFLOW.LAB_REVIEW:
+      return "warn"
+    case WORKFLOW.PPT_READY:
+      return "ready"
+    default:
+      return "neutral"
   }
 }
 

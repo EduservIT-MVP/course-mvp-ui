@@ -1,0 +1,827 @@
+openapi: 3.0.3
+info:
+  title: CourseForge API
+  description: |
+    REST API for the CourseForge SPA workflow:
+
+    **Brief → Plan → PPT → Lab → Lab guide → Complete**
+
+    Most mutating workflow endpoints return the updated course immediately and
+    continue work in a background job. Poll `GET /courses/{courseId}` until
+    status leaves `*_GENERATING`.
+
+    ## Auth
+    Use **Authorize** with a JWT from `POST /auth/login` as:
+    `Bearer <token>`
+
+    Demo instructor: `instructor@eduservit.local` / `CourseForge123!`
+  version: 1.0.0
+  contact:
+    name: EduservIT
+
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local development
+  - url: http://localhost:8080
+    description: Local development (localhost)
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Courses
+  - name: Plan
+  - name: Presentation
+  - name: Lab
+  - name: Lab guide
+  - name: Artifacts
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from `/auth/login` or `/auth/signup`.
+
+  parameters:
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Course ID
+
+    ArtifactId:
+      name: artifactId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    SlideFilename:
+      name: filename
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^slide-\d{2}\.png$'
+        example: slide-01.png
+      description: Pre-rendered slide image filename
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+        code:
+          type: string
+          example: validation
+      required: [message]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, instructor, reviewer, learner]
+        permissions:
+          type: array
+          items:
+            type: string
+
+    Session:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT for Authorization Bearer header
+        user:
+          $ref: '#/components/schemas/User'
+
+    AuthCredentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: instructor@eduservit.local
+        password:
+          type: string
+          format: password
+          example: CourseForge123!
+        name:
+          type: string
+          description: Optional on signup; derived from email if omitted
+
+    CourseBrief:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Access Token Management
+        audience:
+          type: string
+        level:
+          type: string
+          example: Intermediate
+        duration:
+          type: string
+          example: 90 minutes
+        objectives:
+          type: string
+        topics:
+          type: string
+        lab:
+          $ref: '#/components/schemas/LabInput'
+
+    Slide:
+      type: object
+      properties:
+        id:
+          oneOf:
+            - type: integer
+            - type: string
+        title:
+          type: string
+        kicker:
+          type: string
+          example: "01 · INTERMEDIATE"
+        heading:
+          type: string
+        body:
+          type: string
+          description: Bullet lines (often prefixed with • or -)
+        notes:
+          type: string
+
+    Plan:
+      type: object
+      properties:
+        summary:
+          type: string
+        sections:
+          type: integer
+        slides:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slide'
+        raw:
+          type: string
+
+    LabInput:
+      type: object
+      properties:
+        scenario:
+          type: string
+        environment:
+          type: string
+        assets:
+          type: string
+
+    Lab:
+      allOf:
+        - $ref: '#/components/schemas/LabInput'
+        - type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                type: object
+            criteria:
+              type: array
+              items:
+                type: string
+            code:
+              type: object
+
+    Guide:
+      type: object
+      properties:
+        sections:
+          type: array
+          items:
+            type: object
+
+    Artifact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          example: ppt
+        name:
+          type: string
+          example: access-token-management-theory.pptx
+        label:
+          type: string
+        sizeLabel:
+          type: string
+        mimeType:
+          type: string
+        downloadUrl:
+          nullable: true
+          type: string
+
+    SlideImage:
+      type: object
+      properties:
+        index:
+          type: integer
+          example: 0
+        name:
+          type: string
+          example: slide-01.png
+        url:
+          type: string
+          example: /courses/{courseId}/slides/slide-01.png
+
+    CourseStatus:
+      type: string
+      description: Workflow status driving the SPA screen
+      enum:
+        - SELECT_COURSE
+        - PLAN_GENERATING
+        - PLAN_REVIEW
+        - WAITING_FOR_APPROVAL
+        - PPT_GENERATING
+        - PPT_READY
+        - LAB_GENERATING
+        - LAB_REVIEW
+        - LAB_GUIDE_GENERATING
+        - COMPLETE
+        - FAILED
+        - REGENERATE
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/CourseStatus'
+        title:
+          type: string
+        audience:
+          type: string
+        level:
+          type: string
+        duration:
+          type: string
+        objectives:
+          type: string
+        topics:
+          type: string
+        plan:
+          $ref: '#/components/schemas/Plan'
+        lab:
+          $ref: '#/components/schemas/Lab'
+        guide:
+          $ref: '#/components/schemas/Guide'
+        ppt:
+          allOf:
+            - $ref: '#/components/schemas/Artifact'
+          nullable: true
+        slideImages:
+          type: array
+          description: Pre-rendered PNG previews (required before Presentation UI is ready)
+          items:
+            $ref: '#/components/schemas/SlideImage'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artifact'
+        error:
+          nullable: true
+          type: string
+        failedScreen:
+          type: integer
+        stage:
+          nullable: true
+          type: string
+          description: Human-readable background job progress
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CourseList:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Course'
+
+    ArtifactList:
+      type: object
+      properties:
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artifact'
+
+    SlideRegenerateRequest:
+      type: object
+      properties:
+        slides:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {}
+              index:
+                type: integer
+        prompt:
+          type: string
+        notes:
+          type: string
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                  agents:
+                    type: string
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create an instructor account
+      operationId: signup
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (client should discard token)
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      operationId: me
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+
+  /courses:
+    get:
+      tags: [Courses]
+      summary: List courses
+      operationId: listCourses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseList'
+    post:
+      tags: [Courses]
+      summary: Create a course from a brief
+      operationId: createCourse
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseBrief'
+      responses:
+        '201':
+          description: Course created (status SELECT_COURSE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Courses]
+      summary: Get course (poll this during generating states)
+      operationId: getCourse
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course including plan, ppt, slideImages, artifacts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '404':
+          description: Not found
+    patch:
+      tags: [Courses]
+      summary: Update course brief / lab fields
+      operationId: updateCourse
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseBrief'
+      responses:
+        '200':
+          description: Updated course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+    delete:
+      tags: [Courses]
+      summary: Delete a course and its artifacts
+      description: |
+        Permanently removes the course record and on-disk artifact folder
+        (`artifacts/{courseId}/`), including PPTX and slide preview images.
+      operationId: deleteCourse
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{courseId}/plan/generate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Plan]
+      summary: Start plan generation
+      description: Sets status to `PLAN_GENERATING`, then background job → `WAITING_FOR_APPROVAL`.
+      operationId: planGenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now PLAN_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '409':
+          description: Invalid transition
+
+  /courses/{courseId}/plan/regenerate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Plan]
+      summary: Regenerate plan (same as generate)
+      operationId: planRegenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now PLAN_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/plan/approve:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Plan]
+      summary: Approve plan and start PPT generation
+      description: |
+        Requires `WAITING_FOR_APPROVAL` or `PLAN_REVIEW`.
+        Transitions to `PPT_GENERATING` and starts PPT + slide-image render job.
+        Poll until `PPT_READY` **and** `slideImages` is non-empty.
+      operationId: planApprove
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now PPT_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '409':
+          description: Invalid transition
+
+  /courses/{courseId}/ppt/generate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Presentation]
+      summary: Generate presentation
+      operationId: pptGenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now PPT_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/ppt/regenerate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Presentation]
+      summary: Regenerate full presentation
+      operationId: pptRegenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now PPT_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/ppt/slides/regenerate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Presentation]
+      summary: Regenerate tagged slides
+      operationId: pptSlidesRegenerate
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlideRegenerateRequest'
+      responses:
+        '200':
+          description: Course now PPT_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/lab/generate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Lab]
+      summary: Generate lab
+      description: Typically called from PPT_READY. Sets `LAB_GENERATING` → `LAB_REVIEW`.
+      operationId: labGenerate
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabInput'
+      responses:
+        '200':
+          description: Course now LAB_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/lab/regenerate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Lab]
+      summary: Regenerate lab
+      operationId: labRegenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now LAB_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/lab/approve:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Lab]
+      summary: Approve lab and start lab-guide generation
+      description: Transitions to `LAB_GUIDE_GENERATING`, then `COMPLETE`.
+      operationId: labApprove
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now LAB_GUIDE_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/lab-guide/generate:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Lab guide]
+      summary: Generate lab guide
+      operationId: labGuideGenerate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Course now LAB_GUIDE_GENERATING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/artifacts:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Artifacts]
+      summary: List course artifacts
+      operationId: listArtifacts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Artifact list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactList'
+
+  /courses/{courseId}/artifacts/{artifactId}/download:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      tags: [Artifacts]
+      summary: Download an artifact file
+      description: Returns the binary file (e.g. `.pptx`) with Content-Disposition attachment.
+      operationId: downloadArtifact
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Missing artifact
+
+  /courses/{courseId}/slides/{filename}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/SlideFilename'
+    get:
+      tags: [Presentation]
+      summary: Get a pre-rendered slide preview PNG
+      description: Used by the Presentation screen `<img>` preview (not the downloadable PPTX).
+      operationId: getSlideImage
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: PNG image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Slide image not found

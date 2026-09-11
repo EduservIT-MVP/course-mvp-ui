@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import Header from "../components/Header"
 import Sidebar from "../components/Sidebar"
 import Button from "../components/Button"
+import ConfirmDialog from "../components/ConfirmDialog"
 import StatusBanner from "../components/StatusBanner"
 import CourseBrief from "./CourseBrief"
+import PlanGeneratingScreen from "./PlanGeneratingScreen"
+import PlanReviewScreen from "./PlanReviewScreen"
+import PptGeneratingScreen from "./PptGeneratingScreen"
 import PptAgent from "./PptAgent"
 import LabGeneration from "./LabGeneration"
 import LabGuide from "./LabGuide"
-import { STEPS } from "../data"
 import { courseService } from "../api/courseService"
 import { workflowService } from "../api/workflowService"
 import { pptService } from "../api/pptService"
@@ -18,12 +21,14 @@ import { messageFromError } from "../api/errors"
 import { useAuth } from "../auth/context"
 import { useCourse } from "../hooks/useCourse"
 import { downloadBlob } from "../lib/download"
+import { WORKFLOW, isGenerating } from "../workflow/states"
+import WorkflowRouter from "../workflow/WorkflowRouter"
 import {
-  WORKFLOW,
-  isGenerating,
-  maxStepForStatus,
-  screenForStatus,
-} from "../workflow/states"
+  SCREEN,
+  headerMetaForScreen,
+  resolveWorkflowScreen,
+  sidebarStepForCourse,
+} from "../workflow/screens"
 
 const EMPTY_BRIEF = {
   title: "",
@@ -44,26 +49,67 @@ export default function Workspace() {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const { can } = useAuth()
-  const { course, loading, busy, error, run, refresh } = useCourse(courseId)
+  const { course, setCourse, loading, busy, error, run, refresh } = useCourse(courseId)
 
-  const [step, setStep] = useState(0)
-  const [maxStep, setMaxStep] = useState(0)
+  // Form drafts only — never used to pick which workflow screen to show.
   const [brief, setBrief] = useState(EMPTY_BRIEF)
   const [lab, setLab] = useState(EMPTY_LAB)
   const [slideIndex, setSlideIndex] = useState(0)
   const [guideSection, setGuideSection] = useState("overview")
   const [toast, setToast] = useState("")
   const [downloading, setDownloading] = useState(false)
+  // Leave the brief immediately on submit, even before navigate/refetch finishes.
+  const [awaitingPlan, setAwaitingPlan] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const status = awaitingPlan
+    ? WORKFLOW.PLAN_GENERATING
+    : course?.status || WORKFLOW.SELECT_COURSE
+  const failed = status === WORKFLOW.FAILED
+  const ppt = findPptArtifact(course)
+  const slideImagesReady = Boolean(course?.slideImages?.length)
+  // Keep generating UX (+ polling) until slide images exist — works for stub or real PPT agent.
+  const awaitingSlidePreviews =
+    Boolean(course) && course.status === WORKFLOW.PPT_READY && !slideImagesReady && !failed
+  const displayStatus = awaitingSlidePreviews ? WORKFLOW.PPT_GENERATING : status
+  const screen = resolveWorkflowScreen(displayStatus)
+  const step = awaitingPlan
+    ? 1
+    : sidebarStepForCourse(awaitingSlidePreviews ? { ...course, status: WORKFLOW.PPT_GENERATING } : course)
+  const maxStep = step
+  const header = headerMetaForScreen(screen)
+  const generating = isGenerating(displayStatus)
+  const errorMessage = messageFromError(error, "")
+
+  const prevStatusRef = useRef(null)
+
+  useEffect(() => {
+    if (!courseId) setSlideIndex(0)
+  }, [courseId])
+
+  useEffect(() => {
+    const next = course?.status || null
+    const prev = prevStatusRef.current
+    prevStatusRef.current = next
+    // Reset slide only when entering Presentation from generating — not on every course refresh.
+    if (next === WORKFLOW.PPT_READY && prev && prev !== WORKFLOW.PPT_READY) {
+      setSlideIndex(0)
+    }
+  }, [course?.status])
 
   useEffect(() => {
     if (!course) {
-      setStep(0)
-      setMaxStep(0)
+      if (!awaitingPlan) {
+        setBrief(EMPTY_BRIEF)
+        setLab(EMPTY_LAB)
+      }
       return
     }
-    const nextStep = screenForStatus(course.status, course.failedScreen)
-    setStep(nextStep)
-    setMaxStep(Math.max(nextStep, maxStepForStatus(course.status, course.failedScreen)))
+    // Agent finished (or failed) — stop the optimistic "waiting" override.
+    if (course.status && course.status !== WORKFLOW.PLAN_GENERATING) {
+      setAwaitingPlan(false)
+    }
     setBrief({
       title: course.title || "",
       audience: course.audience || "",
@@ -77,9 +123,8 @@ export default function Workspace() {
       environment: course.lab?.environment || "Browser workspace",
       assets: course.lab?.assets || "",
     })
-    setSlideIndex(0)
     if (course.guide?.sections?.[0]?.id) setGuideSection(course.guide.sections[0].id)
-  }, [course?.id, course?.status, course?.updatedAt])
+  }, [course?.id, course?.status, course?.updatedAt, awaitingPlan])
 
   function showToast(message) {
     setToast(message)
@@ -87,11 +132,14 @@ export default function Workspace() {
   }
 
   async function handleGeneratePlan() {
+    // Spec: after brief submit, leave the form and wait for the agent.
+    setAwaitingPlan(true)
     try {
       await run(async () => {
         if (!courseId) {
           const created = await courseService.create(brief)
           const started = await workflowService.generatePlan(created.id)
+          setCourse(started)
           navigate(`/courses/${created.id}`, { replace: true })
           return started
         }
@@ -99,6 +147,7 @@ export default function Workspace() {
         return workflowService.generatePlan(courseId)
       })
     } catch (err) {
+      setAwaitingPlan(false)
       showToast(messageFromError(err, "Could not start plan generation."))
     }
   }
@@ -118,8 +167,10 @@ export default function Workspace() {
         await run(() => pptService.regenerate(course.id))
         return
       }
+      setAwaitingPlan(true)
       await run(() => workflowService.regeneratePlan(course.id))
     } catch (err) {
+      setAwaitingPlan(false)
       showToast(messageFromError(err, "Could not regenerate."))
     }
   }
@@ -179,6 +230,21 @@ export default function Workspace() {
     }
   }
 
+  async function handleDeleteCourse() {
+    if (!course?.id) return
+    setDeleting(true)
+    try {
+      await courseService.remove(course.id)
+      setConfirmDeleteOpen(false)
+      navigate("/", { replace: true })
+    } catch (err) {
+      showToast(messageFromError(err, "Could not delete the course."))
+      setConfirmDeleteOpen(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function handleExport() {
     try {
       await fileService.downloadAll(course)
@@ -187,26 +253,142 @@ export default function Workspace() {
     }
   }
 
-  const current = STEPS[step] || STEPS[0]
-  const status = course?.status || WORKFLOW.SELECT_COURSE
-  const generating = isGenerating(status)
-  const failed = status === WORKFLOW.FAILED
-  const errorMessage = messageFromError(error, "")
-  const ppt = findPptArtifact(course)
+  const briefNode = (
+    <CourseBrief
+      brief={brief}
+      onChange={(key, value) => setBrief((prev) => ({ ...prev, [key]: value }))}
+      onGenerate={handleGeneratePlan}
+      busy={busy || awaitingPlan}
+      error={errorMessage}
+      readOnly={Boolean(course) && status !== WORKFLOW.SELECT_COURSE && status !== WORKFLOW.FAILED}
+      canGenerate={
+        can("plan:generate") &&
+        (!course || status === WORKFLOW.SELECT_COURSE || status === WORKFLOW.FAILED) &&
+        !awaitingPlan
+      }
+    />
+  )
+
+  const planGeneratingNode = <PlanGeneratingScreen course={course || { title: brief.title }} />
+
+  // Dedicated plan approval — uses course.plan.slides from the backend agent, not the PPT file.
+  const planReviewNode = (
+    <PlanReviewScreen
+      course={course}
+      busy={busy}
+      canApprove={
+        can("plan:approve") &&
+        (status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL)
+      }
+      canRegenerate={
+        can("plan:regenerate") &&
+        (status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL || failed)
+      }
+      onApprove={handleApprovePlan}
+      onRegenerate={handleRegeneratePlan}
+      error={errorMessage || course?.error}
+    />
+  )
+
+  const pptGeneratingNode = <PptGeneratingScreen course={course} />
+
+  // PPT ready only — no plan Approve here (that lives on PlanReviewScreen).
+  const pptNode = (
+    <PptAgent
+      course={course}
+      slideIndex={slideIndex}
+      onSelectSlide={setSlideIndex}
+      onRegenerate={handleRegeneratePlan}
+      onRegenerateSlides={handleRegenerateSlides}
+      onApprove={undefined}
+      onDownloadPpt={handleDownloadPpt}
+      onStartLab={handleStartLab}
+      busy={busy}
+      downloading={downloading}
+      generating={false}
+      failed={failed}
+      error={errorMessage || course?.error}
+      canApprove={false}
+      canRegenerate={
+        can("ppt:regenerate") && (status === WORKFLOW.PPT_READY || failed)
+      }
+      canDownloadPpt={can("ppt:download") && Boolean(ppt)}
+      canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY && Boolean(ppt) && slideImagesReady}
+      ppt={ppt}
+      summary={course?.plan?.summary}
+    />
+  )
+
+  const labNode = (
+    <LabGeneration
+      // Always the live course.lab from the API — never a local draft/fixture.
+      lab={course?.lab}
+      onGenerate={handleGenerateGuide}
+      onRegenerate={handleRegenerateLab}
+      busy={busy}
+      generating={status === WORKFLOW.LAB_GENERATING}
+      failed={failed}
+      error={errorMessage || course?.error}
+      canGenerate={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
+      canRegenerate={can("lab:regenerate") && (status === WORKFLOW.LAB_REVIEW || failed)}
+    />
+  )
+
+  const guideNode = (
+    <LabGuide
+      section={guideSection}
+      onSelectSection={setGuideSection}
+      guide={course?.guide}
+      artifacts={course?.artifacts || []}
+      onDownload={handleDownload}
+      onExport={handleExport}
+      generating={status === WORKFLOW.LAB_GUIDE_GENERATING}
+      failed={failed}
+      error={errorMessage || course?.error}
+      canDownload={can("artifacts:download") && status === WORKFLOW.COMPLETE}
+    />
+  )
+
+  // WorkflowRouter reads course.status; while awaitingPlan / slide previews we pass a stub generating status.
+  const routedCourse = awaitingPlan
+    ? { ...(course || {}), status: WORKFLOW.PLAN_GENERATING, title: course?.title || brief.title }
+    : awaitingSlidePreviews
+      ? {
+          ...course,
+          status: WORKFLOW.PPT_GENERATING,
+          stage: course.stage || "Rendering slide previews…",
+        }
+      : course
 
   return (
     <div className="app">
-      <Sidebar step={step} maxStep={maxStep} onSelect={setStep} course={course} />
+      <Sidebar
+        step={step}
+        maxStep={maxStep}
+        // Navigation no longer overrides server status; step is derived only.
+        onSelect={() => {}}
+        course={routedCourse}
+      />
       <div className="workspace">
-        <Header title={current.header} subtitle={current.subtitle} />
+        <Header
+          title={header.header}
+          subtitle={header.subtitle || undefined}
+          actions={
+            course && can("course:delete") ? (
+              <Button variant="secondary" className="course-delete-btn" onClick={() => setConfirmDeleteOpen(true)}>
+                Delete course
+              </Button>
+            ) : null
+          }
+        />
         <main className="content">
-          {loading ? (
+          {loading && !awaitingPlan && !course ? (
             <section className="brief">
               <StatusBanner tone="busy" title="Loading course" message="Restoring the latest backend status." />
             </section>
           ) : null}
 
-          {!loading && error && !course && courseId ? (
+          {!loading && error && !course && courseId && !awaitingPlan ? (
             <section className="brief">
               <StatusBanner
                 tone="error"
@@ -221,85 +403,51 @@ export default function Workspace() {
             </section>
           ) : null}
 
-          {!loading && step === 0 ? (
-            <CourseBrief
-              brief={brief}
-              onChange={(key, value) => setBrief((prev) => ({ ...prev, [key]: value }))}
-              onGenerate={handleGeneratePlan}
-              busy={busy}
-              error={errorMessage}
-              readOnly={Boolean(course) && status !== WORKFLOW.SELECT_COURSE && status !== WORKFLOW.FAILED}
-              canGenerate={can("plan:generate") && (!course || status === WORKFLOW.SELECT_COURSE || status === WORKFLOW.FAILED)}
-            />
-          ) : null}
-
-          {!loading && step === 1 ? (
-            <PptAgent
-              course={course}
-              slides={course?.plan?.slides || []}
-              slideIndex={slideIndex}
-              onSelectSlide={setSlideIndex}
-              onRegenerate={handleRegeneratePlan}
-              onRegenerateSlides={handleRegenerateSlides}
-              onApprove={handleApprovePlan}
-              onDownloadPpt={handleDownloadPpt}
-              onStartLab={handleStartLab}
-              busy={busy}
-              downloading={downloading}
-              generating={generating && (status === WORKFLOW.PLAN_GENERATING || status === WORKFLOW.PPT_GENERATING || status === WORKFLOW.REGENERATE)}
-              failed={failed}
-              error={errorMessage || course?.error}
-              canApprove={can("plan:approve") && (status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL)}
-              canRegenerate={
-                can("plan:regenerate") || can("ppt:regenerate")
-                  ? status === WORKFLOW.PLAN_REVIEW ||
-                    status === WORKFLOW.WAITING_FOR_APPROVAL ||
-                    status === WORKFLOW.PPT_READY ||
-                    failed
-                  : false
-              }
-              canDownloadPpt={can("ppt:download") && (status === WORKFLOW.PPT_READY || Boolean(ppt))}
-              canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY}
-              ppt={ppt}
-              summary={course?.plan?.summary}
-            />
-          ) : null}
-
-          {!loading && step === 2 ? (
-            <LabGeneration
-              lab={lab}
-              tasks={course?.lab?.tasks || []}
-              criteria={course?.lab?.criteria || []}
-              onChange={(key, value) => setLab((prev) => ({ ...prev, [key]: value }))}
-              onBack={() => setStep(1)}
-              onGenerate={handleGenerateGuide}
-              onRegenerate={handleRegenerateLab}
-              busy={busy}
-              generating={status === WORKFLOW.LAB_GENERATING}
-              failed={failed}
-              error={errorMessage || course?.error}
-              canGenerate={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
-              canRegenerate={can("lab:regenerate") && (status === WORKFLOW.LAB_REVIEW || failed)}
-            />
-          ) : null}
-
-          {!loading && step === 3 ? (
-            <LabGuide
-              section={guideSection}
-              onSelectSection={setGuideSection}
-              guide={course?.guide}
-              artifacts={course?.artifacts || []}
-              onDownload={handleDownload}
-              onExport={handleExport}
-              generating={status === WORKFLOW.LAB_GUIDE_GENERATING}
-              failed={failed}
-              error={errorMessage || course?.error}
-              canDownload={can("artifacts:download") && status === WORKFLOW.COMPLETE}
+          {(!loading || awaitingPlan || course) && !(error && !course && courseId && !awaitingPlan) ? (
+            <WorkflowRouter
+              course={routedCourse}
+              screens={{
+                [SCREEN.COURSE_BRIEF]: briefNode,
+                [SCREEN.PLAN_GENERATING]: planGeneratingNode,
+                [SCREEN.PLAN_REVIEW]: planReviewNode,
+                [SCREEN.PPT_GENERATING]: pptGeneratingNode,
+                [SCREEN.PPT_READY]: pptNode,
+                [SCREEN.LAB_GENERATING]: labNode,
+                [SCREEN.LAB_REVIEW]: labNode,
+                [SCREEN.LAB_GUIDE_ACTION]: guideNode,
+                [SCREEN.LAB_GUIDE_GENERATING]: guideNode,
+                [SCREEN.COMPLETE]: guideNode,
+                [SCREEN.FAILED]:
+                  step === 0
+                    ? briefNode
+                    : step === 2
+                      ? labNode
+                      : step === 3
+                        ? guideNode
+                        : status === WORKFLOW.FAILED && Number(course?.failedScreen) === 1
+                          ? planReviewNode
+                          : pptNode,
+              }}
             />
           ) : null}
         </main>
       </div>
       {toast ? <div className="toast">{toast}</div> : null}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete this course?"
+        message={
+          course
+            ? `“${course.title || "Untitled course"}” and all of its generated files will be permanently removed. This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete course"
+        cancelLabel="Keep course"
+        busy={deleting}
+        onCancel={() => !deleting && setConfirmDeleteOpen(false)}
+        onConfirm={handleDeleteCourse}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { SLIDES, LAB_TASKS, CRITERIA, GUIDE_PAGES, GUIDE_SECTIONS } from "../data"
+import { LAB_TASKS, CRITERIA, GUIDE_PAGES, GUIDE_SECTIONS } from "../data"
 import { WORKFLOW } from "../workflow/states"
 
 function splitList(text) {
@@ -9,34 +9,105 @@ function splitList(text) {
 }
 
 export function buildPlan(brief) {
-  const topics = splitList(brief.topics)
-  const slides = (topics.length ? topics : SLIDES.map((slide) => slide.title)).map((topic, index) => {
-    const seed = SLIDES[index % SLIDES.length]
-    return {
-      id: index + 1,
-      title: topic,
-      kicker: `${String(index + 1).padStart(2, "0")} · ${brief.level || "COURSE"}`.toUpperCase(),
-      heading: seed.heading,
-      body: `${seed.body} This module is for ${brief.audience || "learners"}.`,
-      notes: `${seed.notes} Objective: ${brief.objectives || "Define the teaching goal."}`,
-    }
-  })
+  const topic =
+    splitList(brief.topics)[0] ||
+    String(brief.title || "this topic").trim() ||
+    "this topic"
+  const title = String(brief.title || topic).trim() || "Course"
+  const audience = brief.audience || "practitioners"
+  const level = brief.level || "Intermediate"
+  const objectives = splitList(brief.objectives)
+  const objLine = objectives[0] || `Explain and apply ${topic} in a real workflow`
+  const relatedTopics = splitList(brief.topics).slice(1, 4)
+  const related = relatedTopics.length ? relatedTopics.join(", ") : `related controls around ${topic}`
+
+  const sections = [
+    {
+      title: "Core Concept",
+      bullets: [
+        `${topic} is the core idea this course teaches for ${audience}.`,
+        `Learners should leave able to: ${objLine}.`,
+        "Keep the definition short, precise, and free of vendor jargon.",
+        "Anchor every later slide back to this definition.",
+      ],
+    },
+    {
+      title: "Comparison",
+      bullets: [
+        `Contrast ${topic} with the default approach teams use today.`,
+        `Call out when ${topic} is the better fit, and when it is not.`,
+        `Highlight one trade-off (security, UX, or operations) ${audience} will feel.`,
+        `Map ${topic} against ${related}.`,
+      ],
+    },
+    {
+      title: "Real-World Example",
+      bullets: [
+        `Walk through a concrete ${String(level).toLowerCase()} scenario using ${topic}.`,
+        `Show the before state (pain) and after state (with ${topic}).`,
+        "Name the roles involved and the decision each role owns.",
+        "Capture one failure mode teams actually hit in production.",
+      ],
+    },
+    {
+      title: "Best Practices",
+      bullets: [
+        `Start with a narrow scope before expanding ${topic}.`,
+        "Prefer explicit contracts and checkable outcomes over vague guidance.",
+        "Document assumptions so the lab can validate them.",
+        `Review ${topic} decisions against the course objectives.`,
+      ],
+    },
+    {
+      title: "Flow",
+      bullets: [
+        `Introduce the goal → define ${topic} → compare options → apply in a scenario.`,
+        "Sequence slides so each step unlocks the next decision.",
+        "Reserve time for questions before the hands-on lab.",
+        "End the flow with a short “what good looks like” checklist.",
+      ],
+    },
+    {
+      title: "Remember This",
+      bullets: [
+        `${topic} matters because ${audience} must make better decisions under pressure.`,
+        `One crisp takeaway: apply ${topic} deliberately, then verify with evidence.`,
+        "Point learners to the lab for practice, not more slides.",
+        "Revisit this slide if discussion drifts into tooling details.",
+      ],
+    },
+  ]
+
+  const slides = sections.map((section, index) => ({
+    id: index + 1,
+    title: section.title,
+    kicker: `${String(index + 1).padStart(2, "0")} · ${String(level).toUpperCase()}`,
+    heading: section.title,
+    body: section.bullets.map((line) => `• ${line}`).join("\n"),
+    notes: `Facilitator note: cover “${section.title}” with a concrete example.`,
+  }))
 
   return {
-    summary: `${brief.title} · ${brief.duration || "flexible"} · ${brief.level || "mixed"}`,
-    sections: Math.max(1, Math.ceil(slides.length / 2)),
+    summary: `${title} · ${brief.duration || "flexible"} · ${level} · ${slides.length} slides`,
+    sections: slides.length,
     slides,
   }
 }
 
 export function buildLab(brief, lab) {
-  const criteria = splitList(brief.objectives)
+  const fromObjectives = splitList(brief.objectives)
+  const criteria =
+    fromObjectives.length >= 2 || (fromObjectives.length === 1 && fromObjectives[0].length > 28)
+      ? fromObjectives
+      : CRITERIA
+  const scenario = lab?.scenario || brief.title || "Hands-on lab"
   return {
-    scenario: lab?.scenario || `${brief.title} workshop`,
+    scenario,
     environment: lab?.environment || "Browser workspace",
     assets: lab?.assets || "Starter notes, template, evaluation rubric",
     tasks: LAB_TASKS,
-    criteria: criteria.length ? criteria : CRITERIA,
+    criteria,
+    useCase: lab?.scenario || `Apply ${brief.title || "course"} concepts in a guided hands-on exercise.`,
     code: {
       language: "javascript",
       files: [

@@ -12,24 +12,9 @@ export default function CourseBrief({
   readOnly,
   canGenerate,
 }) {
-  const filled = Object.values(brief).filter(Boolean).length
-
   return (
     <section className="brief">
-      <div className="brief-intro">
-        <h2>Create a course from one brief</h2>
-        <p>
-          Add the core teaching inputs once. CourseForge will turn them into a
-          presentation, hands-on lab, and polished learner guide.
-        </p>
-      </div>
-
       <div className="brief-card">
-        <div>
-          <h3>Course essentials</h3>
-          <p className="hint">All fields can be refined in later steps.</p>
-        </div>
-
         <div className="field-row">
           <label className="field">
             Course title
@@ -98,10 +83,10 @@ export default function CourseBrief({
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="brief-actions">
-        <span>{filled} teaching inputs complete</span>
+        <span />
         {canGenerate ? (
           <Button onClick={onGenerate} disabled={busy || !brief.title}>
-            {busy ? "Starting generation…" : "Generate presentation →"}
+            {busy ? "Starting…" : "Generate plan →"}
           </Button>
         ) : null}
       </div>

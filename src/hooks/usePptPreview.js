@@ -4,6 +4,7 @@ import { parsePptx, revokeSlideImages } from "../lib/parsePptx"
 
 export function usePptPreview(course) {
   const [slides, setSlides] = useState([])
+  const [blob, setBlob] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const ppt = findPptArtifact(course)
@@ -15,6 +16,7 @@ export function usePptPreview(course) {
 
     async function load() {
       revokeSlideImages(loaded)
+      setBlob(null)
       if (!course?.id || !ppt) {
         setSlides(course?.plan?.slides || [])
         return
@@ -29,6 +31,7 @@ export function usePptPreview(course) {
           return
         }
         loaded = parsed
+        setBlob(file.blob)
         if (parsed.length) {
           const fallback = course.plan?.slides || []
           setSlides(
@@ -58,5 +61,5 @@ export function usePptPreview(course) {
     }
   }, [pptKey])
 
-  return { slides, loading, error, ppt }
+  return { slides, blob, loading, error, ppt }
 }

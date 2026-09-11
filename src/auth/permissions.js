@@ -7,6 +7,7 @@ const ROLE_PERMISSIONS = {
     "course:list",
     "course:view",
     "course:update",
+    "course:delete",
     "plan:generate",
     "plan:approve",
     "plan:regenerate",

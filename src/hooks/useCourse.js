@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { courseService } from "../api/courseService"
-import { isGenerating } from "../workflow/states"
-import { usePolling } from "./usePolling"
+import { useCoursePolling } from "./useCoursePolling"
+import { WORKFLOW, isGenerating } from "../workflow/states"
 
+/**
+ * Load one course and keep it fresh while the backend is generating.
+ * Screen choice must use course.status via resolveWorkflowScreen — not local UI state.
+ */
 export function useCourse(courseId) {
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(Boolean(courseId))
@@ -23,7 +27,13 @@ export function useCourse(courseId) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(Boolean(courseId))
+    if (!courseId) {
+      setCourse(null)
+      setLoading(false)
+      return undefined
+    }
+    // Keep previous course visible while the new id loads (avoids flashing back to the brief).
+    setLoading(true)
     refresh()
       .catch((err) => {
         if (!cancelled) setError(err)
@@ -36,32 +46,34 @@ export function useCourse(courseId) {
     }
   }, [refresh, courseId])
 
-  usePolling(
-    () => {
-      refresh().catch((err) => setError(err))
-    },
-    courseId && isGenerating(course?.status) ? 2000 : null,
+  // Poll while *_GENERATING, or PPT_READY until slide preview images arrive.
+  const pollStatus =
+    course?.status === WORKFLOW.PPT_READY && !(course?.slideImages?.length)
+      ? WORKFLOW.PPT_GENERATING
+      : course?.status
+
+  useCoursePolling(courseId, pollStatus, () =>
+    refresh().catch((err) => {
+      setError(err)
+    }),
   )
 
-  const run = useCallback(
-    async (action) => {
-      setBusy(true)
-      setError(null)
-      try {
-        const data = await action()
-        setCourse(data)
-        return data
-      } catch (err) {
-        setError(err)
-        throw err
-      } finally {
-        setBusy(false)
-      }
-    },
-    [],
-  )
+  const run = useCallback(async (action) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const data = await action()
+      setCourse(data)
+      return data
+    } catch (err) {
+      setError(err)
+      throw err
+    } finally {
+      setBusy(false)
+    }
+  }, [])
 
-  return { course, setCourse, loading, busy, error, setError, refresh, run }
+  return { course, setCourse, loading, busy, error, setError, refresh, run, generating: isGenerating(pollStatus) }
 }
 
 export function useCourses() {

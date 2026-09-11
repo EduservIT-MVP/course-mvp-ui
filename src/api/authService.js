@@ -23,6 +23,25 @@ export const authService = {
     return session
   },
 
+  async signup(credentials) {
+    const body = {
+      email: credentials.email,
+      password: credentials.password,
+      name: credentials.name || "",
+    }
+    const payload = isMockMode()
+      ? mockApi.signup(body)
+      : await request("/auth/signup", { method: "POST", body })
+    const session = normalizeLogin(payload)
+    if (!session.token) {
+      throw new ApiError("Signup succeeded but no access token was returned.", {
+        status: 502,
+        code: "auth_contract",
+      })
+    }
+    return session
+  },
+
   async logout() {
     if (isMockMode()) return mockApi.logout()
     return request("/auth/logout", { method: "POST", body: {} })

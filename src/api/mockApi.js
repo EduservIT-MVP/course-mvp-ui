@@ -97,6 +97,29 @@ export const mockApi = {
     return { token: `mock-token-${user.id}`, user }
   },
 
+  signup({ email, password, name }) {
+    if (!email || !password) {
+      throw new ApiError("Email and password are required.", { status: 400, code: "validation" })
+    }
+    if (String(password).length < 8) {
+      throw new ApiError("Password must be at least 8 characters.", { status: 400, code: "validation" })
+    }
+    const normalized = String(email).trim().toLowerCase()
+    if (normalized.endsWith("@eduservit.local")) {
+      throw new ApiError("An account with this email already exists.", { status: 409, code: "conflict" })
+    }
+    const display =
+      String(name || "").trim() ||
+      String(normalized.split("@")[0] || "User").replace(/[._]/g, " ")
+    const user = {
+      id: `user-${normalized}`,
+      email: normalized,
+      name: display.charAt(0).toUpperCase() + display.slice(1),
+      role: "instructor",
+    }
+    return { token: `mock-token-${user.id}`, user }
+  },
+
   logout() {
     return { ok: true }
   },
@@ -150,6 +173,14 @@ export const mockApi = {
     requirePermission(user, "course:update")
     const { db, course } = requireCourse(id)
     return commit(db, { ...course, ...input, lab: { ...course.lab, ...input.lab } })
+  },
+
+  deleteCourse(user, id) {
+    requirePermission(user, "course:delete")
+    const { db, course } = requireCourse(id)
+    db.courses = db.courses.filter((item) => item.id !== id)
+    save(db)
+    return { ok: true, id, title: course.title }
   },
 
   generatePlan(user, id) {
