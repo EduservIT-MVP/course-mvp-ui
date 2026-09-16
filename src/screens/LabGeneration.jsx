@@ -159,12 +159,12 @@ export default function LabGeneration({
         </div>
         <div className="actions">
           {canGenerate ? (
-            <Button onClick={onGenerate} disabled={busy || generating}>
+            <Button variant="accent" onClick={onGenerate} busy={busy || generating} disabled={busy || generating}>
               {busy ? "Submitting…" : "Approve →"}
             </Button>
           ) : null}
           {canRegenerate ? (
-            <Button variant="secondary" onClick={onRegenerate} disabled={busy || generating}>
+            <Button variant="secondary" onClick={onRegenerate} busy={busy || generating} disabled={busy || generating}>
               Regenerate
             </Button>
           ) : null}

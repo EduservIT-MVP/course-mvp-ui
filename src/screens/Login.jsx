@@ -2,17 +2,15 @@ import { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import logo from "../assets/eduservit-logo.png"
 import Button from "../components/Button"
-import { isMockMode } from "../api/config"
 import { messageFromError } from "../api/errors"
-import { DEMO_PASSWORD, DEMO_USERS } from "../auth/demoUsers"
 import { useAuth } from "../auth/context"
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState(isMockMode() ? DEMO_USERS[0].email : "")
-  const [password, setPassword] = useState(isMockMode() ? DEMO_PASSWORD : "")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -43,11 +41,7 @@ export default function Login() {
       <section className="brief-card login-card">
         <div>
           <h3>Sign in</h3>
-          <p className="hint">
-            {isMockMode()
-              ? `UI preview login: ${DEMO_USERS[0].email} / ${DEMO_PASSWORD}`
-              : "Sign in with your backend account."}
-          </p>
+          <p className="hint">Sign in with your EduServ IT account.</p>
         </div>
 
         <form className="login-form" onSubmit={onSubmit}>
@@ -72,7 +66,7 @@ export default function Login() {
             />
           </label>
           {error ? <p className="form-error">{error}</p> : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" variant="primary" size="lg" busy={busy}>
             {busy ? "Signing in…" : "Continue"}
           </Button>
         </form>

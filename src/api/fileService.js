@@ -1,14 +1,7 @@
 import { downloadBlob } from "../lib/download"
 import { request, requestBlob } from "./client"
-import { isMockMode } from "./config"
-import { mockApi } from "./mockApi"
 import { ApiError } from "./errors"
 import { isPptArtifact, normalizeArtifact } from "./normalize"
-import { readSession } from "./session"
-
-function user() {
-  return readSession()?.user ?? null
-}
 
 export function findPptArtifact(course) {
   if (!course) return null
@@ -27,10 +20,14 @@ async function downloadFromUrl(url, fallbackName, { signed = false } = {}) {
 
 export const fileService = {
   async list(courseId) {
-    if (isMockMode()) return mockApi.listArtifacts(user(), courseId).map(normalizeArtifact)
     const payload = await request(`/courses/${courseId}/artifacts`)
     const list = Array.isArray(payload) ? payload : payload?.artifacts || payload?.files || payload?.data || []
     return list.map(normalizeArtifact)
+  },
+
+  async fetchPptBlob(courseId) {
+    const result = await requestBlob(`/courses/${courseId}/ppt`)
+    return result.blob
   },
 
   async download(courseId, artifact) {
@@ -46,7 +43,6 @@ export const fileService = {
     const artifactId = file.id || file.fileId
     if (!artifactId) throw new ApiError("No file ID or download URL was provided.")
 
-    if (isMockMode()) return mockApi.downloadArtifact(user(), courseId, artifactId)
     return requestBlob(`/courses/${courseId}/artifacts/${artifactId}/download`)
   },
 

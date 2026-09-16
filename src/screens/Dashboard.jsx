@@ -97,7 +97,9 @@ export default function Dashboard() {
                     : "No courses are assigned to your role yet."}
                 </p>
                 {canCreate ? (
-                  <Button onClick={() => navigate("/courses/new")}>Create your first course</Button>
+                  <Button variant="accent" onClick={() => navigate("/courses/new")} style={{ marginTop: 8 }}>
+                    Create your first course →
+                  </Button>
                 ) : null}
               </div>
             ) : (
@@ -119,6 +121,7 @@ export default function Dashboard() {
                     {canDelete ? (
                       <Button
                         variant="secondary"
+                        size="sm"
                         className="course-delete-btn"
                         aria-label={`Delete ${course.title || "course"}`}
                         onClick={() => {

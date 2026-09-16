@@ -97,7 +97,7 @@ export default function Signup() {
             />
           </label>
           {error ? <p className="form-error">{error}</p> : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" variant="primary" size="lg" busy={busy}>
             {busy ? "Creating account…" : "Create account"}
           </Button>
         </form>

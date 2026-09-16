@@ -1,12 +1,18 @@
+import { lazy, Suspense } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { AuthProvider } from "./auth/AuthProvider"
 import { useAuth } from "./auth/context"
 import { RequireAuth, RequirePermission } from "./auth/RequireAuth"
-import Login from "./screens/Login"
-import Signup from "./screens/Signup"
-import Dashboard from "./screens/Dashboard"
-import Workspace from "./screens/Workspace"
-import Forbidden from "./screens/Forbidden"
+
+const Login = lazy(() => import("./screens/Login"))
+const Signup = lazy(() => import("./screens/Signup"))
+const Dashboard = lazy(() => import("./screens/Dashboard"))
+const Workspace = lazy(() => import("./screens/Workspace"))
+const Forbidden = lazy(() => import("./screens/Forbidden"))
+
+function PageLoader() {
+  return <div className="boot" role="status">Loading workspace…</div>
+}
 
 function GuestOnly({ children }) {
   const { ready, user } = useAuth()
@@ -19,45 +25,47 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <GuestOnly>
-                <Login />
-              </GuestOnly>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <GuestOnly>
-                <Signup />
-              </GuestOnly>
-            }
-          />
-          <Route element={<RequireAuth />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/forbidden" element={<Forbidden />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
             <Route
-              path="/courses/new"
+              path="/login"
               element={
-                <RequirePermission permission="course:create">
-                  <Workspace />
-                </RequirePermission>
+                <GuestOnly>
+                  <Login />
+                </GuestOnly>
               }
             />
             <Route
-              path="/courses/:courseId"
+              path="/signup"
               element={
-                <RequirePermission permission="course:view">
-                  <Workspace />
-                </RequirePermission>
+                <GuestOnly>
+                  <Signup />
+                </GuestOnly>
               }
             />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route element={<RequireAuth />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/forbidden" element={<Forbidden />} />
+              <Route
+                path="/courses/new"
+                element={
+                  <RequirePermission permission="course:create">
+                    <Workspace />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="/courses/:courseId"
+                element={
+                  <RequirePermission permission="course:view">
+                    <Workspace />
+                  </RequirePermission>
+                }
+              />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   )

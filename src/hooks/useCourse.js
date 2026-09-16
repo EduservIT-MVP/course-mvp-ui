@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { courseService } from "../api/courseService"
 import { useCoursePolling } from "./useCoursePolling"
-import { WORKFLOW, isGenerating } from "../workflow/states"
+import { isGenerating } from "../workflow/states"
 
 /**
  * Load one course and keep it fresh while the backend is generating.
@@ -46,11 +46,7 @@ export function useCourse(courseId) {
     }
   }, [refresh, courseId])
 
-  // Poll while *_GENERATING, or PPT_READY until slide preview images arrive.
-  const pollStatus =
-    course?.status === WORKFLOW.PPT_READY && !(course?.slideImages?.length)
-      ? WORKFLOW.PPT_GENERATING
-      : course?.status
+  const pollStatus = course?.status
 
   useCoursePolling(courseId, pollStatus, () =>
     refresh().catch((err) => {

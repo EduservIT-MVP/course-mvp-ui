@@ -25,7 +25,7 @@ function filenameFromDisposition(disposition) {
 
 export async function request(path, { method = "GET", body, headers, signal } = {}) {
   if (!API_BASE_URL) {
-    throw new ApiError("Set VITE_API_BASE_URL in .env to your external REST API, or set VITE_USE_MOCK=true to preview the UI.", {
+    throw new ApiError("Set VITE_API_BASE_URL in .env to the URL of your Flask API.", {
       status: 0,
       code: "config",
     })

@@ -85,7 +85,7 @@ export default function CourseBrief({
       <div className="brief-actions">
         <span />
         {canGenerate ? (
-          <Button onClick={onGenerate} disabled={busy || !brief.title}>
+          <Button variant="accent" onClick={onGenerate} busy={busy} disabled={busy || !brief.title}>
             {busy ? "Starting…" : "Generate plan →"}
           </Button>
         ) : null}

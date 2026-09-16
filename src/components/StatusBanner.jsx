@@ -10,5 +10,5 @@ export default function StatusBanner({ tone = "info", title, message, action }) 
       </div>
       {action ? <div className="actions">{action}</div> : null}
     </div>
-  )
+  ) 
 }

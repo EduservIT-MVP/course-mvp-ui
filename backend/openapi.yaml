@@ -10,12 +10,18 @@ info:
     continue work in a background job. Poll `GET /courses/{courseId}` until
     status leaves `*_GENERATING`.
 
+    ## Standalone Agent Microservices
+    External agent endpoints configured via environment variables:
+    - **PPTX Agent** (`AGENT_PPTX_URL`): Generates `.pptx` presentation binaries
+    - **Lab Agent** (`AGENT_LAB_URL`): Generates hands-on lab exercises and tasks
+    - **Lab Guide Agent** (`AGENT_LAB_GUIDE_URL`): Generates structured walkthrough documentation
+
     ## Auth
     Use **Authorize** with a JWT from `POST /auth/login` as:
     `Bearer <token>`
 
     Demo instructor: `instructor@eduservit.local` / `CourseForge123!`
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: EduservIT
 
@@ -380,6 +386,23 @@ paths:
                     type: string
                   agents:
                     type: string
+                    description: Agent configuration status ("configured" or "stub")
+                  agent_endpoints:
+                    type: object
+                    description: Standalone agent microservice endpoint URLs
+                    properties:
+                      pptx:
+                        type: string
+                        example: http://localhost:8001/build-pptx
+                      lab:
+                        type: string
+                        example: http://localhost:8002/generate-lab
+                      lab_guide:
+                        type: string
+                        example: http://localhost:8003/generate-guide
+                  docs:
+                    type: string
+                    example: /docs
 
   /auth/signup:
     post:
@@ -685,6 +708,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Course'
+
+  /courses/{courseId}/ppt:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Presentation]
+      summary: Stream the course PPTX presentation file directly for in-browser rendering
+      description: Returns the raw binary .pptx presentation file for vector rendering via pptx-viewer.
+      operationId: getCoursePpt
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: PPTX presentation binary stream
+          content:
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: PPT presentation not found
 
   /courses/{courseId}/lab/generate:
     parameters:

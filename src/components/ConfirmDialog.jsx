@@ -40,7 +40,7 @@ export default function ConfirmDialog({
           <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
-          <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy}>
+          <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} busy={busy}>
             {busy ? "Working…" : confirmLabel}
           </Button>
         </div>

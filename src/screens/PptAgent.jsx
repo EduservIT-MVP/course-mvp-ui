@@ -1,12 +1,12 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import Button from "../components/Button"
+import PptViewer from "../components/PptViewer"
 import StatusBanner from "../components/StatusBanner"
-import { useSlideImageCache } from "../hooks/useSlideImageCache"
 
 /**
- * PPT_READY — preview pre-rendered slide PNGs; outline is a navigator only.
- * Download still serves the real .pptx. Stable across agent swaps as long as
- * course.slideImages[] + ppt artifact are populated before PPT_READY.
+ * PPT_READY — vector PowerPoint presentation rendered directly in-browser via PptViewer.
+ * Outline acts as an interactive slide navigator.
+ * Download serves the real .pptx file.
  */
 export default function PptAgent({
   course,
@@ -25,32 +25,21 @@ export default function PptAgent({
   canStartLab,
   ppt,
 }) {
+  const [detectedSlideCount, setDetectedSlideCount] = useState(0)
   const planSlides = course?.plan?.slides
-  const slideImages = course?.slideImages
 
   const slides = useMemo(() => {
     const plans = planSlides || []
-    const images = slideImages || []
-    if (images.length) {
-      return images.map((img, index) => ({
-        id: index + 1,
-        title: plans[index]?.title || plans[index]?.heading || `Slide ${index + 1}`,
-        url: img.url,
-      }))
-    }
-    return plans.map((item, index) => ({
-      id: item.id || index + 1,
-      title: item.title || item.heading || `Slide ${index + 1}`,
-      url: null,
+    const count = Math.max(plans.length, detectedSlideCount)
+    if (!count) return []
+    return Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      title: plans[index]?.title || plans[index]?.heading || `Slide ${index + 1}`,
     }))
-  }, [planSlides, slideImages])
+  }, [planSlides, detectedSlideCount])
 
-  const imagePaths = useMemo(() => slides.map((s) => s.url).filter(Boolean), [slides])
   const safeIndex = Math.min(Math.max(0, slideIndex || 0), Math.max(0, slides.length - 1))
-  const slide = slides[safeIndex]
-  const ready = Boolean(slides.length) && !generating
-  const image = useSlideImageCache(imagePaths, safeIndex)
-  const showPlaceholder = ready && !image.hasImage && !image.loading
+  const ready = (Boolean(slides.length) || Boolean(ppt)) && !generating
 
   return (
     <section className="ppt">
@@ -76,12 +65,12 @@ export default function PptAgent({
         </div>
         <div className="actions">
           {canDownloadPpt ? (
-            <Button variant="secondary" onClick={onDownloadPpt} disabled={busy || downloading || !ppt}>
+            <Button variant="secondary" onClick={onDownloadPpt} busy={downloading} disabled={busy || downloading || !ppt}>
               {downloading ? "Downloading…" : "Download"}
             </Button>
           ) : null}
           {canStartLab ? (
-            <Button onClick={onStartLab} disabled={busy || !ppt || !(slideImages?.length)}>
+            <Button variant="accent" onClick={onStartLab} busy={busy} disabled={busy || !ppt}>
               {busy ? "Starting…" : "Generate lab →"}
             </Button>
           ) : null}
@@ -90,7 +79,7 @@ export default function PptAgent({
 
       {!ready ? (
         <div className="brief-card">
-          <h3>No slides yet</h3>
+          <h3>No presentation available yet</h3>
         </div>
       ) : (
         <div className="review">
@@ -109,48 +98,32 @@ export default function PptAgent({
           </aside>
 
           <div className="preview-panel">
-            <article className={`pptx-frame${image.loading ? " is-rendering" : ""}`}>
-              {image.url ? (
-                <img
-                  className="pptx-slide-image"
-                  src={image.url}
-                  alt={slide?.title || `Slide ${safeIndex + 1}`}
-                  draggable={false}
-                />
-              ) : null}
-              {image.loading ? (
-                <div className="pptx-frame-loading" role="status" aria-live="polite">
-                  <span className="pptx-spinner" aria-hidden="true" />
-                  <span>Loading slide…</span>
-                </div>
-              ) : null}
-              {showPlaceholder ? (
-                <div className="pptx-frame-empty">
-                  <p>{image.error ? "Could not load this slide." : "Slide preview unavailable."}</p>
-                  {canRegenerate ? (
-                    <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
-                      Regenerate
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
+            <article className="pptx-frame">
+              <PptViewer
+                courseId={course?.id}
+                ppt={ppt}
+                slideIndex={safeIndex}
+                onTotalSlides={setDetectedSlideCount}
+              />
             </article>
 
             <div className="pptx-nav">
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => onSelectSlide(Math.max(0, safeIndex - 1))}
-                disabled={safeIndex <= 0 || image.loading}
+                disabled={safeIndex <= 0}
               >
                 Prev
               </Button>
               <p>
-                {safeIndex + 1} / {slides.length}
+                {safeIndex + 1} / {slides.length || 1}
               </p>
               <Button
                 variant="secondary"
-                onClick={() => onSelectSlide(Math.min(slides.length - 1, safeIndex + 1))}
-                disabled={safeIndex >= slides.length - 1 || image.loading}
+                size="sm"
+                onClick={() => onSelectSlide(Math.min((slides.length || 1) - 1, safeIndex + 1))}
+                disabled={safeIndex >= (slides.length || 1) - 1}
               >
                 Next
               </Button>
@@ -161,3 +134,4 @@ export default function PptAgent({
     </section>
   )
 }
+

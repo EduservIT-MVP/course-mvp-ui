@@ -21,7 +21,7 @@ import { messageFromError } from "../api/errors"
 import { useAuth } from "../auth/context"
 import { useCourse } from "../hooks/useCourse"
 import { downloadBlob } from "../lib/download"
-import { WORKFLOW, isGenerating } from "../workflow/states"
+import { WORKFLOW } from "../workflow/states"
 import WorkflowRouter from "../workflow/WorkflowRouter"
 import {
   SCREEN,
@@ -68,18 +68,11 @@ export default function Workspace() {
     : course?.status || WORKFLOW.SELECT_COURSE
   const failed = status === WORKFLOW.FAILED
   const ppt = findPptArtifact(course)
-  const slideImagesReady = Boolean(course?.slideImages?.length)
-  // Keep generating UX (+ polling) until slide images exist — works for stub or real PPT agent.
-  const awaitingSlidePreviews =
-    Boolean(course) && course.status === WORKFLOW.PPT_READY && !slideImagesReady && !failed
-  const displayStatus = awaitingSlidePreviews ? WORKFLOW.PPT_GENERATING : status
+  const displayStatus = status
   const screen = resolveWorkflowScreen(displayStatus)
-  const step = awaitingPlan
-    ? 1
-    : sidebarStepForCourse(awaitingSlidePreviews ? { ...course, status: WORKFLOW.PPT_GENERATING } : course)
+  const step = awaitingPlan ? 1 : sidebarStepForCourse(course)
   const maxStep = step
   const header = headerMetaForScreen(screen)
-  const generating = isGenerating(displayStatus)
   const errorMessage = messageFromError(error, "")
 
   const prevStatusRef = useRef(null)
@@ -313,7 +306,7 @@ export default function Workspace() {
         can("ppt:regenerate") && (status === WORKFLOW.PPT_READY || failed)
       }
       canDownloadPpt={can("ppt:download") && Boolean(ppt)}
-      canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY && Boolean(ppt) && slideImagesReady}
+      canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY && Boolean(ppt)}
       ppt={ppt}
       summary={course?.plan?.summary}
     />
@@ -349,16 +342,10 @@ export default function Workspace() {
     />
   )
 
-  // WorkflowRouter reads course.status; while awaitingPlan / slide previews we pass a stub generating status.
+  // WorkflowRouter reads course.status; while awaitingPlan we pass a stub generating status.
   const routedCourse = awaitingPlan
     ? { ...(course || {}), status: WORKFLOW.PLAN_GENERATING, title: course?.title || brief.title }
-    : awaitingSlidePreviews
-      ? {
-          ...course,
-          status: WORKFLOW.PPT_GENERATING,
-          stage: course.stage || "Rendering slide previews…",
-        }
-      : course
+    : course
 
   return (
     <div className="app">
@@ -373,9 +360,10 @@ export default function Workspace() {
         <Header
           title={header.header}
           subtitle={header.subtitle || undefined}
+          course={course}
           actions={
             course && can("course:delete") ? (
-              <Button variant="secondary" className="course-delete-btn" onClick={() => setConfirmDeleteOpen(true)}>
+              <Button variant="secondary" size="sm" className="course-delete-btn" onClick={() => setConfirmDeleteOpen(true)}>
                 Delete course
               </Button>
             ) : null
@@ -395,7 +383,7 @@ export default function Workspace() {
                 title="Couldn’t open this course"
                 message={errorMessage}
                 action={
-                  <Button variant="secondary" onClick={() => refresh()}>
+                  <Button variant="secondary" size="sm" onClick={() => refresh()}>
                     Retry
                   </Button>
                 }

@@ -2,17 +2,26 @@
 
 React SPA for the CourseForge workflow: login, course brief, PPT agent, lab generation, and lab guide.
 
+> 🛠️ **Agent Developers**: To integrate your standalone agent servers (PPTX, Lab, Lab Guide), see the [**Agent Integration Guide (DEVELOPER.md)**](DEVELOPER.md).
+
 ## Requirements
 
 - Node.js 18+ (20+ recommended)
 - npm
 
-## Run locally (UI preview)
+## Run locally
 
-This is the default. No external API is required.
+Start the Flask API first, then run the React app.
 
 ```bash
-cd eduservit
+cd backend
+uv venv
+uv pip install -r requirements.txt
+uv run python app.py seed
+uv run python app.py
+
+# In a second terminal
+cd ..
 npm install
 npm run dev
 ```
@@ -22,17 +31,6 @@ Open the URL Vite prints, usually:
 - http://localhost:5173/
 
 If that port is busy, Vite uses the next one (for example `5174`).
-
-### Sign in (preview)
-
-The login form is prefilled.
-
-| Email | Password | Role |
-|---|---|---|
-| `instructor@eduservit.local` | `CourseForge123!` | instructor |
-| `admin@eduservit.local` | `CourseForge123!` | admin |
-| `reviewer@eduservit.local` | `CourseForge123!` | reviewer |
-| `learner@eduservit.local` | `CourseForge123!` | learner |
 
 ### Walk the UI
 
@@ -44,41 +42,31 @@ The login form is prefilled.
 6. **Generate lab guide**
 7. **Download All** on the complete screen
 
-Preview data is stored in the browser (`localStorage`). Refresh keeps the current course status.
+All account, course, workflow, and artifact data comes from the Flask API.
 
 ## Environment
 
 Copy `.env.example` to `.env` if you do not already have one.
 
-```env
-# UI preview (default)
-VITE_USE_MOCK=true
-VITE_API_BASE_URL=
+The app uses `http://127.0.0.1:8080` by default, so this file is only needed to override the API location.
 
-# Real REST API (later)
-# VITE_USE_MOCK=false
-# VITE_API_BASE_URL=https://your-api.example.com
-# VITE_API_PROXY_TARGET=https://your-api.example.com
+```env
+VITE_API_BASE_URL=http://localhost:8080
+VITE_API_PROXY_TARGET=http://localhost:8080
 ```
 
 Restart `npm run dev` after changing `.env`.
 
 ## Connect a real REST API
 
-```env
-VITE_USE_MOCK=false
-VITE_API_BASE_URL=https://your-api.example.com
-```
-
 If the API does not allow browser CORS, proxy through Vite:
 
 ```env
-VITE_USE_MOCK=false
 VITE_API_BASE_URL=/api
 VITE_API_PROXY_TARGET=https://your-api.example.com
 ```
 
-Login then uses `POST {API}/auth/login` with the email and password you type. No demo users are used in this mode.
+Login uses `POST {API}/auth/login` with the email and password you type.
 
 ## Other commands
 
@@ -90,6 +78,6 @@ npm run lint       # oxlint
 
 ## Troubleshooting
 
-- **Blank login error about `VITE_API_BASE_URL`:** set `VITE_USE_MOCK=true` and restart the dev server.
+- **Login error about `VITE_API_BASE_URL`:** set the Flask API URL in `.env` and restart the dev server.
 - **Port already in use:** use the alternate localhost port Vite prints.
 - **Stale UI after env change:** stop the terminal (`Ctrl+C`) and run `npm run dev` again, then hard-refresh the browser.

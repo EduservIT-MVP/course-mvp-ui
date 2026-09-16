@@ -125,7 +125,7 @@ export default function LabGuide({
         </div>
         <div className="actions">
           {canDownload ? (
-            <Button variant="secondary" onClick={onExport} disabled={!artifacts.length}>
+            <Button variant="accent" onClick={onExport} disabled={!artifacts.length}>
               Download all
             </Button>
           ) : null}
@@ -175,15 +175,16 @@ export default function LabGuide({
                       {file.sizeLabel ? <span className="artifact-card-meta">{file.sizeLabel}</span> : null}
                       {file.name ? <span className="artifact-card-filename">{file.name}</span> : null}
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       className="artifact-card-download"
                       onClick={() => onDownload(file)}
                       aria-label={`Download ${file.label || file.name}`}
                     >
                       <DownloadGlyph />
                       <span>Download</span>
-                    </button>
+                    </Button>
                   </article>
                 )
               })}

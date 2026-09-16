@@ -18,12 +18,12 @@ export default function ApprovalActions({
   return (
     <div className="brief-actions">
       {canRegenerate ? (
-        <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
+        <Button variant="secondary" onClick={onRegenerate} busy={busy}>
           {busy ? "Working…" : regenerateLabel}
         </Button>
       ) : null}
       {canApprove ? (
-        <Button onClick={onApprove} disabled={busy}>
+        <Button variant="accent" onClick={onApprove} busy={busy}>
           {busy ? "Submitting…" : approveLabel}
         </Button>
       ) : null}
