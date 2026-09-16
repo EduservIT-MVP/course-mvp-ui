@@ -28,6 +28,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from config import (
+    HOST,
     PORT,
     SECRET_KEY,
     JWT_SECRET_KEY,
@@ -109,4 +110,4 @@ if __name__ == "__main__":
     elif cmd == "smoke":
         smoke()
     else:
-        app.run(host="127.0.0.1", port=PORT, debug=True)
+        app.run(host=HOST, port=PORT, debug=True)

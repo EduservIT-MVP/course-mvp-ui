@@ -117,6 +117,12 @@ class Course(db.Model):
             "duration": self.duration or "90 minutes",
             "objectives": self.objectives or "",
             "topics": self.topics or "",
+            "details": [
+                {"label": "Topic / Title", "value": self.title or "Not specified"},
+                {"label": "Target Audience", "value": self.audience or "Not specified"},
+                {"label": "Level", "value": self.level or "Not specified"},
+                {"label": "Duration", "value": self.duration or "Not specified"},
+            ],
             "plan": self.plan,
             "lab": self.lab or {"scenario": "", "environment": "Browser workspace", "assets": ""},
             "guide": self.guide,

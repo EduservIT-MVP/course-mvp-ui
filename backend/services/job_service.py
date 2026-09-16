@@ -122,6 +122,11 @@ def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
     try:
         merged = {**(course.lab or {}), **(lab_input or {})}
         course.lab = agent_generate_lab(course.to_dict(), merged)
+        try:
+            guide_preview = agent_generate_guide(course.to_dict(), course.lab)
+            course.guide = {"plan": guide_preview.get("plan", "No plan provided by agent.")}
+        except Exception as e:
+            course.guide = {"plan": f"Could not generate plan preview: {e}"}
         course.status = "LAB_REVIEW"
         course.stage = "Lab ready for approval"
         course.error = None

@@ -13,6 +13,7 @@ class Artifact(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     course_id = db.Column(db.String(36), db.ForeignKey("courses.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_agent = db.Column(db.String(64), nullable=True)
     type = db.Column(db.String(64), nullable=False, default="file")
     name = db.Column(db.String(255), nullable=False)
     label = db.Column(db.String(255), nullable=False, default="Generated file")
@@ -27,10 +28,11 @@ class Artifact(db.Model):
         return {
             "id": self.id,
             "fileId": self.id,
+            "sourceAgent": self.source_agent,
             "type": self.type,
             "name": self.name,
             "label": self.label,
             "sizeLabel": self.size_label,
             "mimeType": self.mime_type,
-            "downloadUrl": None,
+            "downloadUrl": f"/courses/{self.course_id}/artifacts/{self.id}/download",
         }

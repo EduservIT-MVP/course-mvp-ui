@@ -1,0 +1,72 @@
+services:
+  # ── Standalone Mock Agent Microservices ──────────────────────────────────────
+  # Emulates the 3 separate external agent servers on ports 8001, 8002, and 8003.
+  # Replace or disable when connecting to your real standalone agent servers.
+  mock-agents:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: courseforge-mock-agents
+    command: python mock_agents_server.py
+    ports:
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+    networks:
+      - courseforge-net
+    restart: unless-stopped
+
+  # ── CourseForge Flask Backend API ───────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: courseforge-backend
+    command: python app.py
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret-change-me}
+      - DATABASE_URL=sqlite:////app/data/courseforge.db
+      - ARTIFACTS_DIR=/app/data/artifacts
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:80,http://localhost
+      # Internal Docker URLs pointing to the mock-agents service
+      - AGENT_PPTX_URL=${AGENT_PPTX_URL:-http://mock-agents:8001/build-pptx}
+      - AGENT_LAB_URL=${AGENT_LAB_URL:-http://mock-agents:8002/generate-lab}
+      - AGENT_LAB_GUIDE_URL=${AGENT_LAB_GUIDE_URL:-http://mock-agents:8003/generate-guide}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-30}
+      - REQUIRE_AGENT_ENDPOINTS=${REQUIRE_AGENT_ENDPOINTS:-false}
+    volumes:
+      - courseforge_data:/app/data
+    depends_on:
+      - mock-agents
+    networks:
+      - courseforge-net
+    restart: unless-stopped
+
+  # ── CourseForge React Frontend (Vite + Nginx) ──────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8080
+    container_name: courseforge-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - courseforge-net
+    restart: unless-stopped
+
+volumes:
+  courseforge_data:
+    driver: local
+
+networks:
+  courseforge-net:
+    driver: bridge

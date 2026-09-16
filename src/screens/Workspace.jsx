@@ -12,6 +12,7 @@ import PptGeneratingScreen from "./PptGeneratingScreen"
 import PptAgent from "./PptAgent"
 import LabGeneration from "./LabGeneration"
 import LabGuide from "./LabGuide"
+import CourseOverview from "./CourseOverview"
 import { courseService } from "../api/courseService"
 import { workflowService } from "../api/workflowService"
 import { pptService } from "../api/pptService"
@@ -29,6 +30,7 @@ import {
   resolveWorkflowScreen,
   sidebarStepForCourse,
 } from "../workflow/screens"
+import { maxStepForStatus } from "../workflow/states"
 
 const EMPTY_BRIEF = {
   title: "",
@@ -62,6 +64,7 @@ export default function Workspace() {
   const [awaitingPlan, setAwaitingPlan] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [activeStep, setActiveStep] = useState(null)
 
   const status = awaitingPlan
     ? WORKFLOW.PLAN_GENERATING
@@ -70,8 +73,9 @@ export default function Workspace() {
   const ppt = findPptArtifact(course)
   const displayStatus = status
   const screen = resolveWorkflowScreen(displayStatus)
-  const step = awaitingPlan ? 1 : sidebarStepForCourse(course)
-  const maxStep = step
+  const serverStep = awaitingPlan ? 1 : sidebarStepForCourse(course)
+  const step = activeStep !== null ? activeStep : serverStep
+  const maxStep = maxStepForStatus(status, Number(course?.failedScreen)) || serverStep
   const header = headerMetaForScreen(screen)
   const errorMessage = messageFromError(error, "")
 
@@ -246,6 +250,14 @@ export default function Workspace() {
     }
   }
 
+  async function handleDownloadSection(sourceAgent) {
+    try {
+      await fileService.downloadSection(course, sourceAgent)
+    } catch (err) {
+      showToast(messageFromError(err, "Download section failed."))
+    }
+  }
+
   const briefNode = (
     <CourseBrief
       brief={brief}
@@ -314,29 +326,39 @@ export default function Workspace() {
 
   const labNode = (
     <LabGeneration
-      // Always the live course.lab from the API — never a local draft/fixture.
       lab={course?.lab}
-      onGenerate={handleGenerateGuide}
-      onRegenerate={handleRegenerateLab}
       busy={busy}
       generating={status === WORKFLOW.LAB_GENERATING}
       failed={failed}
       error={errorMessage || course?.error}
-      canGenerate={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
-      canRegenerate={can("lab:regenerate") && (status === WORKFLOW.LAB_REVIEW || failed)}
     />
   )
 
   const guideNode = (
     <LabGuide
+      lab={course?.lab}
+      guide={course?.guide}
+      onApprove={handleGenerateGuide}
+      onRegenerate={handleRegenerateLab}
+      generating={status === WORKFLOW.LAB_GUIDE_GENERATING}
+      busy={busy}
+      failed={failed}
+      error={errorMessage || course?.error}
+      canApprove={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
+      canRegenerate={can("lab:regenerate") && (status === WORKFLOW.LAB_REVIEW || failed)}
       section={guideSection}
       onSelectSection={setGuideSection}
-      guide={course?.guide}
+    />
+  )
+
+  const overviewNode = (
+    <CourseOverview
+      course={course}
       artifacts={course?.artifacts || []}
       onDownload={handleDownload}
+      onDownloadSection={handleDownloadSection}
       onExport={handleExport}
-      generating={status === WORKFLOW.LAB_GUIDE_GENERATING}
-      failed={failed}
+      loading={loading}
       error={errorMessage || course?.error}
       canDownload={can("artifacts:download") && status === WORKFLOW.COMPLETE}
     />
@@ -352,8 +374,9 @@ export default function Workspace() {
       <Sidebar
         step={step}
         maxStep={maxStep}
-        // Navigation no longer overrides server status; step is derived only.
-        onSelect={() => {}}
+        onSelect={(idx) => {
+          if (idx <= maxStep) setActiveStep(idx)
+        }}
         course={routedCourse}
       />
       <div className="workspace">
@@ -394,17 +417,24 @@ export default function Workspace() {
           {(!loading || awaitingPlan || course) && !(error && !course && courseId && !awaitingPlan) ? (
             <WorkflowRouter
               course={routedCourse}
+              step={step}
+              serverStep={serverStep}
               screens={{
+                0: briefNode,
+                1: ppt ? pptNode : planReviewNode,
+                2: labNode,
+                3: guideNode,
+                4: overviewNode,
                 [SCREEN.COURSE_BRIEF]: briefNode,
                 [SCREEN.PLAN_GENERATING]: planGeneratingNode,
                 [SCREEN.PLAN_REVIEW]: planReviewNode,
                 [SCREEN.PPT_GENERATING]: pptGeneratingNode,
                 [SCREEN.PPT_READY]: pptNode,
                 [SCREEN.LAB_GENERATING]: labNode,
-                [SCREEN.LAB_REVIEW]: labNode,
+                [SCREEN.LAB_REVIEW]: guideNode,
                 [SCREEN.LAB_GUIDE_ACTION]: guideNode,
                 [SCREEN.LAB_GUIDE_GENERATING]: guideNode,
-                [SCREEN.COMPLETE]: guideNode,
+                [SCREEN.COMPLETE]: overviewNode,
                 [SCREEN.FAILED]:
                   step === 0
                     ? briefNode

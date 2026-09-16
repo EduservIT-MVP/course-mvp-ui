@@ -23,12 +23,13 @@ LIBREOFFICE_PATH = (os.getenv("LIBREOFFICE_PATH") or "").strip()
 JOB_DELAY = float(os.getenv("JOB_STUB_DELAY_SECONDS", "2"))
 
 # ── Networking & Security ────────────────────────────────────────────────────
+HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 CORS_ORIGINS = [
     o.strip()
     for o in os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000,http://127.0.0.1:3000,http://localhost:80,http://localhost",
     ).split(",")
     if o.strip()
 ]

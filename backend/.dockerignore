@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+artifacts/*
+!artifacts/.gitkeep
+.env
+.pytest_cache/
+.mypy_cache/

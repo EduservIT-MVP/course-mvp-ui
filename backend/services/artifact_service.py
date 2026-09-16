@@ -35,7 +35,7 @@ def _size_label(path: Path) -> str:
     return f"{size / (1024 * 1024):.1f} MB"
 
 
-def _upsert_artifact(course, *, type_: str, name: str, label: str, mime_type: str, relative_path: str) -> Artifact:
+def _upsert_artifact(course, *, type_: str, name: str, label: str, mime_type: str, relative_path: str, source_agent: str = None) -> Artifact:
     existing = next((a for a in (course.artifacts or []) if a.type == type_), None)
     abs_path = ARTIFACTS_DIR / relative_path
     size = _size_label(abs_path)
@@ -45,6 +45,7 @@ def _upsert_artifact(course, *, type_: str, name: str, label: str, mime_type: st
         existing.mime_type = mime_type
         existing.storage_path = relative_path
         existing.size_label = size
+        existing.source_agent = source_agent
         db.session.flush()
         return existing
 
@@ -54,6 +55,7 @@ def _upsert_artifact(course, *, type_: str, name: str, label: str, mime_type: st
 
     artifact = Artifact(
         course_id=course.id,
+        source_agent=source_agent,
         type=type_,
         name=name,
         label=label,
@@ -93,6 +95,7 @@ def write_ppt_artifact(course, content: bytes | None = None) -> Artifact:
         label="Theory / course deck",
         mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         relative_path=rel,
+        source_agent="ppt_agent",
     )
 
 
@@ -237,7 +240,7 @@ def write_lab_artifact(course) -> Artifact:
     files = ((course.lab or {}).get("code") or {}).get("files") or []
     content = "\n".join(f"// {f.get('path')}\n{f.get('content', '')}" for f in files) or f"// Lab for {course.title}\n"
     (path / name).write_text(content, encoding="utf-8")
-    return _upsert_artifact(course, type_="lab-code", name=name, label="Lab code", mime_type="text/javascript", relative_path=rel)
+    return _upsert_artifact(course, type_="lab-code", name=name, label="Lab code", mime_type="text/javascript", relative_path=rel, source_agent="lab_generation")
 
 
 def write_guide_artifact(course) -> Artifact:
@@ -246,4 +249,4 @@ def write_guide_artifact(course) -> Artifact:
     path = ARTIFACTS_DIR / course.id
     path.mkdir(parents=True, exist_ok=True)
     (path / name).write_text(json.dumps(course.guide or {}, indent=2), encoding="utf-8")
-    return _upsert_artifact(course, type_="lab-guide", name=name, label="Lab guide", mime_type="application/json", relative_path=rel)
+    return _upsert_artifact(course, type_="lab-guide", name=name, label="Lab guide", mime_type="application/json", relative_path=rel, source_agent="lab_guide")

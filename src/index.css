@@ -878,6 +878,7 @@ label.field {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1089,12 +1090,10 @@ label.field {
 }
 
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.04) 25%,
-    rgba(0, 0, 0, 0.08) 50%,
-    rgba(0, 0, 0, 0.04) 75%
-  );
+  background: linear-gradient(90deg,
+      rgba(0, 0, 0, 0.04) 25%,
+      rgba(0, 0, 0, 0.08) 50%,
+      rgba(0, 0, 0, 0.04) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: var(--radius-xs);
@@ -1123,6 +1122,7 @@ label.field {
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }
@@ -1574,7 +1574,7 @@ label.field {
   box-shadow: var(--shadow-xs);
 }
 
-.lab-section > h3 {
+.lab-section>h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
@@ -1582,7 +1582,7 @@ label.field {
   color: var(--ink);
 }
 
-.lab-section > p {
+.lab-section>p {
   margin: 0;
   font-size: 14px;
   line-height: 1.55;
@@ -1976,6 +1976,7 @@ label.field {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1997,6 +1998,7 @@ label.field {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -2049,6 +2051,7 @@ label.field {
     opacity: 0;
     transform: translateY(8px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2064,6 +2067,20 @@ label.field {
   font-size: 14px;
   font-weight: 550;
   color: var(--muted);
+}
+
+.markdown-pre {
+  margin: 0;
+  padding: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1e293b;
+  overflow-x: auto;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
 }
 
 /* ==========================================================================
@@ -2160,3 +2177,151 @@ label.field {
     grid-template-columns: 1fr;
   }
 }
+/* ==========================================================================
+   COURSE OVERVIEW REFACTOR
+   ========================================================================== */
+
+.course-overview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.course-overview-header {
+  padding: 32px 48px 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.course-overview-content {
+  padding: 32px 48px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.section-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.course-details-grid {
+  padding: 24px;
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin: 0;
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+}
+
+.course-details-item {
+  min-width: auto;
+}
+
+.course-details-item.flex-1 {
+  flex: 1;
+  min-width: 150px;
+}
+
+.course-details-item.flex-auto {
+  flex: 0 0 auto;
+}
+
+.course-details-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: block;
+}
+
+.course-details-value {
+  font-size: 15px;
+  margin-top: 6px;
+  color: var(--ink);
+}
+
+.artifacts-section-container {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.artifacts-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.artifacts-section-header h3 {
+  margin: 0;
+}
+
+.artifacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.artifact-card {
+  padding: 24px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+}
+
+.artifact-title {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.artifact-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.artifact-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--surface-inset);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.artifact-download-btn {
+  margin-top: 24px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-icon {
+  margin-right: 4px;
+}
+

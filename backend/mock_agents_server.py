@@ -32,53 +32,101 @@ def get_mock_pptx_bytes() -> bytes:
 
 
 def get_mock_lab_data(course_title: str = "Modern Architecture") -> dict:
-    """Return hardcoded realistic lab exercise structure."""
+    """Return hardcoded realistic lab exercise structure with README plan."""
+    sample_readme = (
+        "# CIBA Grant Flow Lab\n\n"
+        "**Summary:** This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, "
+        "where a client requests authorization from a user through an out-of-band method.\n\n"
+        "**Trainee persona / decision:** Helpdesk Agent\n\n"
+        "## Steps\n"
+        "1. Start an action on the index page to initiate a CIBA grant flow\n"
+        "2. The action calls the client module, which simulates an async approval flow\n"
+        "3. The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'\n"
+        "4. The trainee can simulate the request being approved or denied through dev-only endpoints\n"
+        "5. The trainee is redirected to a success or denied page, depending on the outcome\n\n"
+        "## Wrong-choice path\n"
+        "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
+        "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication.\n\n"
+        "## Simulated systems (no real network calls, no real credentials)\n"
+        "Async Approval Service\n"
+        "CIBA Authenticator\n\n"
+        "## Expected packages\n"
+        "Flask\n"
+        "Pytest\n"
+        "Mockk\n"
+    )
+
     return {
         "lab": {
-            "scenario": f"Production Implementation Lab: {course_title}",
-            "environment": "Docker, Node.js 20, Python 3.11, Local Development Container",
-            "assets": "Lab repository starter files, environment variables template, automated test suite",
+            "scenario": f"CIBA Grant Flow Lab ({course_title})",
+            "environment": "Docker, Python 3.11, Flask, Pytest, Mockk",
+            "assets": "Lab repository starter files, CIBA emulator, evaluation rubric",
+            "readme": sample_readme,
+            "persona": "Helpdesk Agent",
+            "summary": "This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, where a client requests authorization from a user through an out-of-band method.",
+            "wrongChoicePath": (
+                "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
+                "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication."
+            ),
+            "simulatedSystems": [
+                "Async Approval Service",
+                "CIBA Authenticator",
+            ],
+            "expectedPackages": [
+                "Flask",
+                "Pytest",
+                "Mockk",
+            ],
+            "steps": [
+                "Start an action on the index page to initiate a CIBA grant flow",
+                "The action calls the client module, which simulates an async approval flow",
+                "The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'",
+                "The trainee can simulate the request being approved or denied through dev-only endpoints",
+                "The trainee is redirected to a success or denied page, depending on the outcome",
+            ],
             "tasks": [
                 {
                     "n": 1,
-                    "title": "Configure Runtime Environment & Dependencies",
-                    "detail": "Clone the starter repository, inspect environment configuration, and install dependencies.",
-                    "time": "15 min",
+                    "title": "Initiate CIBA Grant Flow",
+                    "detail": "Start an action on the index page to initiate a CIBA grant flow via client module.",
+                    "time": "10 min",
                 },
                 {
                     "n": 2,
-                    "title": "Implement the Core Agent Workflow",
-                    "detail": "Wire the request handler to parse incoming telemetry, execute policy verification, and log structured metrics.",
-                    "time": "30 min",
+                    "title": "Simulate Asynchronous Approval",
+                    "detail": "Poll status endpoint while request is in flight and simulate approval/denial.",
+                    "time": "25 min",
                 },
                 {
                     "n": 3,
-                    "title": "Execute Verification Suite & Benchmark Latency",
-                    "detail": "Run integration tests and confirm all evaluation criteria and assertions pass.",
+                    "title": "Verify Outcomes & Test Wrong-Choice Guard",
+                    "detail": "Verify redirection to outcome page and ensure bypass attempts trigger explanatory feedback.",
                     "time": "15 min",
                 },
             ],
             "criteria": [
-                "Service successfully starts and passes automated health check assertions",
-                "Core workflow correctly handles edge cases without unhandled exceptions",
-                "Telemetry output conforms to the structured JSON schema",
+                "CIBA authorization request is initiated out-of-band without direct credential prompts",
+                "Async approval polling status lifecycle executes correctly",
+                "Bypass wrong-choice path triggers instructional security error message",
+                "All test assertions pass using Pytest and Mockk",
             ],
             "code": {
-                "language": "javascript",
+                "language": "python",
                 "files": [
                     {
-                        "path": "lab/starter.js",
+                        "path": "lab/app.py",
                         "content": (
-                            "// Hardcoded Mock Agent Starter\n"
-                            "export async function runExercise(context) {\n"
-                            "  console.log('Running hands-on lab exercise for:', context);\n"
-                            "  return { success: true, timestamp: Date.now() };\n"
-                            "}\n"
+                            "# CIBA Grant Flow Simulation Starter\n"
+                            "from flask import Flask, jsonify, request\n\n"
+                            "app = Flask(__name__)\n\n"
+                            "@app.post('/ciba/initiate')\n"
+                            "def initiate_ciba():\n"
+                            "    return jsonify({'auth_req_id': 'ciba-req-101', 'status': 'pending', 'expires_in': 120})\n"
                         ),
                     }
                 ],
             },
-            "useCase": f"Apply {course_title} concepts to implement and validate production workflows.",
+            "useCase": "Implement and validate Client Initiated Backchannel Authentication (CIBA) grant flow.",
         }
     }
 
@@ -92,6 +140,7 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "kicker": "GETTING STARTED",
             "title": f"Lab Overview: {course_title}",
             "lede": "Welcome to the hands-on lab. In this exercise, you will put theoretical concepts into practice by completing a guided implementation.",
+            "content": "### Welcome to the Lab\n\nThis lab is designed to give you practical experience with the concepts covered in this course.\n\n**Prerequisites**\n- Basic understanding of the architecture\n- Access to the lab environment\n\n**Expected Time**\n- 45 minutes",
         },
         {
             "id": "setup",
@@ -99,6 +148,7 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "kicker": "ENVIRONMENT",
             "title": "Workspace & Tooling Configuration",
             "lede": "Confirm your containerized workspace is online and environment variables are properly initialized before starting the tasks.",
+            "content": "### Environment Setup\n\n1. Open your terminal.\n2. Run `docker-compose up -d` to start the required services.\n3. Verify that all containers are running successfully using `docker ps`.\n4. Initialize the database by running `npm run db:setup`.",
         },
         {
             "id": "walkthrough",
@@ -106,6 +156,7 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "kicker": "EXECUTION",
             "title": "Step-by-Step Exercise Execution",
             "lede": "Follow each milestone in sequential order, validating intermediate state and capturing debugging logs as you proceed.",
+            "content": "### Step 1: Initialize the Project\nRun the initial scaffolding command to create the base structure.\n\n### Step 2: Implement the Core Logic\nOpen `src/main.js` and add the authentication middleware.\n\n### Step 3: Test the Integration\nUse the provided Postman collection to trigger the endpoint and observe the logs.",
         },
         {
             "id": "verification",
@@ -113,6 +164,7 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "kicker": "EVALUATION",
             "title": "Assessment & Success Verification",
             "lede": "Verify your finished implementation against the success rubric, run the automated validation script, and review outcomes.",
+            "content": "### Success Verification\n\nRun the automated test suite:\n```bash\nnpm run test:e2e\n```\n\n**Expected Output:**\nAll 14 integration tests should pass. If any fail, review the error logs and ensure the authentication headers are being passed correctly.",
         },
     ]
     return {
@@ -125,6 +177,7 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             ],
             "pages": pages,
             "sections": pages,
+            "plan": "# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the local environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** Intermediate learners who have completed the prerequisites.\n**Estimated Duration:** 45 minutes.\n\n*(Approve this plan to generate the full guide content)*",
         }
     }
 

@@ -3,6 +3,7 @@ export const STEPS = [
   { id: "ppt", label: "PPT agent", header: "PPT agent", subtitle: "Presentation generated from your course brief" },
   { id: "lab", label: "Lab generation", header: "Lab generation agent", subtitle: "Shape the practical exercise before publishing" },
   { id: "guide", label: "Lab guide", header: "Lab guide", subtitle: "Final learner-ready materials" },
+  { id: "overview", label: "Overview", header: "Course overview", subtitle: "All produced documents and artifacts" },
 ]
 
 export const SLIDES = [

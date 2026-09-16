@@ -3,13 +3,23 @@
 React SPA for the CourseForge workflow: login, course brief, PPT agent, lab generation, and lab guide.
 
 > 🛠️ **Agent Developers**: To integrate your standalone agent servers (PPTX, Lab, Lab Guide), see the [**Agent Integration Guide (DEVELOPER.md)**](DEVELOPER.md).
+> 🐳 **Docker Users**: To run the entire stack with Docker Compose, see the [**Dockerization Guide (DOCKER.md)**](DOCKER.md).
 
 ## Requirements
 
 - Node.js 18+ (20+ recommended)
 - npm
+- Or Docker & Docker Compose (see [DOCKER.md](DOCKER.md))
 
-## Run locally
+## Run with Docker (Fastest)
+
+```bash
+docker compose up --build -d
+docker compose exec backend python app.py seed
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+## Run locally (Without Docker)
 
 Start the Flask API first, then run the React app.
 

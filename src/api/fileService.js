@@ -74,4 +74,17 @@ export const fileService = {
     }
     return downloaded
   },
+
+  async downloadSection(course, sourceAgent) {
+    const files = course.artifacts?.length ? course.artifacts : await fileService.list(course.id)
+    const sectionFiles = files.filter(f => f.sourceAgent === sourceAgent)
+    if (!sectionFiles.length) throw new ApiError("No artifacts found for this section.")
+    const downloaded = []
+    for (const artifact of sectionFiles) {
+      const file = await fileService.download(course.id, artifact)
+      await downloadBlob(file.blob, file.filename || artifact.name)
+      downloaded.push(file)
+    }
+    return downloaded
+  },
 }
