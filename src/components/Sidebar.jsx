@@ -17,20 +17,23 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
   
   const [promptOpen, setPromptOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [promptError, setPromptError] = useState(null)
   const currentCategory = searchParams.get("category") || "All"
 
   const handleAddCategory = () => {
+    setPromptError(null)
     setPromptOpen(true)
   }
 
   const handleConfirmCategory = async (name) => {
     try {
+      setPromptError(null)
       setCreating(true)
       await categoryService.create(name)
       await refreshCategories()
       setPromptOpen(false)
     } catch (err) {
-      alert("Failed to create category: " + (err.message || "Unknown error"))
+      setPromptError("Failed to create category: " + (err.message || "Unknown error"))
     } finally {
       setCreating(false)
     }
@@ -136,11 +139,15 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
         open={promptOpen}
         title="Add Category"
         message="Enter a name for the new workspace category."
+        error={promptError}
         placeholder="e.g., Sales, Engineering"
         confirmLabel="Create"
         busy={creating}
         onConfirm={handleConfirmCategory}
-        onCancel={() => setPromptOpen(false)}
+        onCancel={() => {
+          setPromptOpen(false)
+          setPromptError(null)
+        }}
       />
     </aside>
   )

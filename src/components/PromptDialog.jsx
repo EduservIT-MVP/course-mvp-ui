@@ -8,6 +8,7 @@ export default function PromptDialog({
   open,
   title,
   message,
+  error = null,
   label = "Category name",
   placeholder = "",
   confirmLabel = "Save",
@@ -49,7 +50,13 @@ export default function PromptDialog({
         <h3 id={titleId}>{title}</h3>
         {message ? <p className="dialog-message">{message}</p> : null}
         
-        <div className="field-floating" style={{ marginTop: "24px", marginBottom: "32px" }}>
+        {error ? (
+          <div className="form-error" style={{ marginBottom: "16px", marginTop: "-8px", fontSize: "13px" }}>
+            {error}
+          </div>
+        ) : null}
+
+        <div className="field-floating" style={{ marginTop: "16px", marginBottom: "32px" }}>
           <input
             ref={inputRef}
             type="text"
