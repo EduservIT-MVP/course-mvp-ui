@@ -33,7 +33,7 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
       await refreshCategories()
       setPromptOpen(false)
     } catch (err) {
-      setPromptError("Failed to create category: " + (err.message || "Unknown error"))
+      setPromptError(err.message || "Unknown error occurred")
     } finally {
       setCreating(false)
     }
