@@ -38,7 +38,16 @@ def apply_brief(course: Course, body: dict) -> None:
 @courses_bp.get("")
 @require_permission("course:list")
 def list_courses():
-    items = Course.query.order_by(Course.updated_at.desc()).all()
+    category = request.args.get("category")
+    query = Course.query
+    
+    if category:
+        if category == "Uncategorized":
+            query = query.filter((Course.category.is_(None)) | (Course.category == ""))
+        else:
+            query = query.filter(Course.category == category)
+            
+    items = query.order_by(Course.updated_at.desc()).all()
     return ok({"courses": [c.to_dict() for c in items]})
 
 

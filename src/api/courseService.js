@@ -2,8 +2,9 @@ import { request } from "./client"
 import { normalizeCourse, normalizeCourseList } from "./normalize"
 
 export const courseService = {
-  async list() {
-    return normalizeCourseList(await request("/courses"))
+  async list(category) {
+    const query = category ? `?category=${encodeURIComponent(category)}` : ""
+    return normalizeCourseList(await request(`/courses${query}`))
   },
 
   async get(id) {

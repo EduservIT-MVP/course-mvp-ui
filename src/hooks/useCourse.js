@@ -72,17 +72,19 @@ export function useCourse(courseId) {
   return { course, setCourse, loading, busy, error, setError, refresh, run, generating: isGenerating(pollStatus) }
 }
 
-export function useCourses() {
+export function useCourses(category) {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const refresh = useCallback(async () => {
-    const data = await courseService.list()
+    setLoading(true)
+    const data = await courseService.list(category)
     setCourses(data)
     setError(null)
+    setLoading(false)
     return data
-  }, [])
+  }, [category])
 
   useEffect(() => {
     let cancelled = false

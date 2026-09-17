@@ -14,13 +14,12 @@ import { statusLabel, statusTone } from "../workflow/states"
 
 export default function Dashboard() {
   const { can } = useAuth()
-  const { courses, loading, error, refresh } = useCourses()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const currentCategory = searchParams.get("category") || "All"
+  const { courses, loading, error, refresh } = useCourses(currentCategory !== "All" ? currentCategory : undefined)
   const canCreate = can("course:create")
   const canDelete = can("course:delete")
-
-  const currentCategory = searchParams.get("category") || "All"
 
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -44,12 +43,8 @@ export default function Dashboard() {
     }
   }
 
-  // Filter courses by selected category
-  const filteredCourses = courses.filter(c => 
-    currentCategory === "All" ? true : (c.category || "Uncategorized") === currentCategory
-  )
-
-  const groupedCourses = filteredCourses.reduce((acc, c) => {
+  // Use the fetched courses directly; they are pre-filtered by the backend if a category is selected.
+  const groupedCourses = courses.reduce((acc, c) => {
     const cat = c.category || "Uncategorized"
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(c)
@@ -70,7 +65,7 @@ export default function Dashboard() {
         <main className="content">
           <section className="brief">
             <div className="brief-intro">
-              <h2>Your courses</h2>
+              <h2>{currentCategory === "All" ? "Your courses" : `${currentCategory} Courses`}</h2>
               <p>Open a course to continue the plan → presentation → lab workflow.</p>
             </div>
 
@@ -95,7 +90,13 @@ export default function Dashboard() {
               <span className="meta-count">
                 {loading ? "Loading…" : `${courses.length} course${courses.length === 1 ? "" : "s"}`}
               </span>
-              {canCreate ? <Button onClick={() => navigate("/courses/new")}>Create course</Button> : null}
+              {canCreate ? (
+                <Button 
+                  onClick={() => navigate(currentCategory === "All" ? "/courses/new" : `/courses/new?category=${encodeURIComponent(currentCategory)}`)}
+                >
+                  Create course
+                </Button>
+              ) : null}
             </div>
 
             {loading ? (
@@ -119,7 +120,7 @@ export default function Dashboard() {
                     : "No courses are assigned to your role yet."}
                 </p>
                 {canCreate ? (
-                  <Button variant="accent" onClick={() => navigate("/courses/new")} style={{ marginTop: 8 }}>
+                  <Button variant="accent" onClick={() => navigate(currentCategory === "All" ? "/courses/new" : `/courses/new?category=${encodeURIComponent(currentCategory)}`)} style={{ marginTop: 8 }}>
                     Create your first course →
                   </Button>
                 ) : null}

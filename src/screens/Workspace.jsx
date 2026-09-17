@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import Header from "../components/Header"
 import Sidebar from "../components/Sidebar"
 import Button from "../components/Button"
@@ -39,6 +39,7 @@ const EMPTY_BRIEF = {
   duration: "90 minutes",
   objectives: "",
   topics: "",
+  category: "",
 }
 
 const EMPTY_LAB = {
@@ -52,9 +53,11 @@ export default function Workspace() {
   const navigate = useNavigate()
   const { can } = useAuth()
   const { course, setCourse, loading, busy, error, run, refresh } = useCourse(courseId)
+  const [searchParams] = useSearchParams()
+  const initialCategory = searchParams.get("category") || ""
 
   // Form drafts only — never used to pick which workflow screen to show.
-  const [brief, setBrief] = useState(EMPTY_BRIEF)
+  const [brief, setBrief] = useState({ ...EMPTY_BRIEF, category: initialCategory })
   const [lab, setLab] = useState(EMPTY_LAB)
   const [slideIndex, setSlideIndex] = useState(0)
   const [guideSection, setGuideSection] = useState("overview")
@@ -98,7 +101,7 @@ export default function Workspace() {
   useEffect(() => {
     if (!course) {
       if (!awaitingPlan) {
-        setBrief(EMPTY_BRIEF)
+        setBrief({ ...EMPTY_BRIEF, category: initialCategory })
         setLab(EMPTY_LAB)
       }
       return

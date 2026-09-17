@@ -117,18 +117,20 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
         </nav>
       )}
 
-      <div className="project-status">
-        <h2>{course?.title || (mode === "dashboard" ? "All courses" : "New course")}</h2>
-        <p>
-          {course ? (
-            <span className={`status-chip tone-${statusTone(course.status)}`}>
-              {statusLabel(course.status)}
-            </span>
-          ) : (
-            "New course"
-          )}
-        </p>
-      </div>
+      {mode === "workflow" ? (
+        <div className="project-status">
+          <h2>{course?.title || "New course"}</h2>
+          <p>
+            {course ? (
+              <span className={`status-chip tone-${statusTone(course.status)}`}>
+                {statusLabel(course.status)}
+              </span>
+            ) : (
+              "New course"
+            )}
+          </p>
+        </div>
+      ) : null}
 
       <PromptDialog
         open={promptOpen}
