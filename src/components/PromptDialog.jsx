@@ -8,10 +8,11 @@ export default function PromptDialog({
   open,
   title,
   message,
+  label = "Category name",
+  placeholder = "",
   confirmLabel = "Save",
   cancelLabel = "Cancel",
   busy = false,
-  placeholder = "",
   initialValue = "",
   onConfirm,
   onCancel,
@@ -54,12 +55,12 @@ export default function PromptDialog({
             type="text"
             id="prompt-dialog-input"
             style={{ width: "100%" }}
-            placeholder=" "
+            placeholder={placeholder || " "}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={busy}
           />
-          <label htmlFor="prompt-dialog-input">{placeholder || "Category name"}</label>
+          <label htmlFor="prompt-dialog-input">{label}</label>
         </div>
 
         <div className="dialog-actions">

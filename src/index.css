@@ -849,6 +849,15 @@ label.field {
   transition: border-color 0.3s ease;
 }
 
+.field-floating input::placeholder {
+  color: transparent;
+}
+
+.field-floating input:focus::placeholder {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
 .field-floating input:focus {
   border-bottom-color: var(--blue);
   background: transparent;
