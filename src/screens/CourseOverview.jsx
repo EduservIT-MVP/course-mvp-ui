@@ -73,7 +73,7 @@ export default function CourseOverview({
             <SectionLabel className="section-title">Artifacts</SectionLabel>
             <div className="artifacts-grid">
               {allItems.map((art) => (
-                <div key={art.id} className="brief-card artifact-card">
+                <div key={art.id} className="artifact-card">
                   <div>
                     <h4 className="artifact-title">
                       {art.label || art.name || "Artifact"}

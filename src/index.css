@@ -2365,8 +2365,8 @@ label.field {
 
 .artifacts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
 }
 
 .artifact-card {
@@ -2375,28 +2375,46 @@ label.field {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: var(--shadow-sm);
-  background: var(--surface);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artifact-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .artifact-title {
-  margin: 0 0 6px 0;
-  font-size: 15px;
+  margin: 0 0 4px 0;
+  font-size: 16px;
   color: var(--ink);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .artifact-subtitle {
   margin: 0;
   font-size: 13px;
   color: var(--muted);
-  word-break: break-all;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .artifact-badges {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
+}
+
+.artifact-download-btn {
+  margin-top: 24px;
+  width: 100%;
 }
 
 .badge {
