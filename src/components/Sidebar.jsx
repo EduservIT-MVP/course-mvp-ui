@@ -1,9 +1,11 @@
+import { useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import logo from "../assets/eduservit-logo.png"
 import { FileText, Presentation, Beaker, BookOpen, LayoutDashboard, Book, Plus, Folder } from "lucide-react"
 import { STEPS } from "../data"
 import { statusLabel, statusTone } from "../workflow/states"
 import SectionLabel from "./SectionLabel"
+import PromptDialog from "./PromptDialog"
 import { useCategories } from "../hooks/useCategory"
 import { categoryService } from "../api/categoryService"
 
@@ -13,17 +15,24 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
   const { categories, refresh: refreshCategories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
   
+  const [promptOpen, setPromptOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const currentCategory = searchParams.get("category") || "All"
 
-  const handleAddCategory = async () => {
-    const name = window.prompt("Enter new category name:")
-    if (name && name.trim()) {
-      try {
-        await categoryService.create(name.trim())
-        await refreshCategories()
-      } catch (err) {
-        alert("Failed to create category: " + (err.message || "Unknown error"))
-      }
+  const handleAddCategory = () => {
+    setPromptOpen(true)
+  }
+
+  const handleConfirmCategory = async (name) => {
+    try {
+      setCreating(true)
+      await categoryService.create(name)
+      await refreshCategories()
+      setPromptOpen(false)
+    } catch (err) {
+      alert("Failed to create category: " + (err.message || "Unknown error"))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -120,6 +129,17 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
           )}
         </p>
       </div>
+
+      <PromptDialog
+        open={promptOpen}
+        title="Add Category"
+        message="Enter a name for the new workspace category."
+        placeholder="e.g., Sales, Engineering"
+        confirmLabel="Create"
+        busy={creating}
+        onConfirm={handleConfirmCategory}
+        onCancel={() => setPromptOpen(false)}
+      />
     </aside>
   )
 }
