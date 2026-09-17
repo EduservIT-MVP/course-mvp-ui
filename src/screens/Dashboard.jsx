@@ -90,7 +90,7 @@ export default function Dashboard() {
               <span className="meta-count">
                 {loading ? "Loading…" : `${courses.length} course${courses.length === 1 ? "" : "s"}`}
               </span>
-              {canCreate ? (
+              {canCreate && courses.length > 0 ? (
                 <Button 
                   onClick={() => navigate(currentCategory === "All" ? "/courses/new" : `/courses/new?category=${encodeURIComponent(currentCategory)}`)}
                 >
