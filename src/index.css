@@ -549,21 +549,21 @@ img {
 }
 
 /* ==========================================================================
-   HEADER (Apple Frosted Glass Navigation Bar)
+   HEADER (Apple Minimalist Frosted Glass Navigation Bar)
    ========================================================================== */
 
 .header {
-  height: 72px;
-  min-height: 72px;
-  padding: 0 40px;
-  background: var(--surface-glass);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--line);
+  height: 64px;
+  min-height: 64px;
+  padding: 0 32px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 24px;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -591,22 +591,22 @@ img {
 
 .breadcrumb-brand {
   font-family: var(--font-heading);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 15px;
-  letter-spacing: -0.02em;
-  color: var(--navy);
+  letter-spacing: -0.01em;
+  color: var(--ink);
   text-decoration: none;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s ease;
   white-space: nowrap;
 }
 
 .breadcrumb-brand:hover {
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .breadcrumb-sep {
-  margin: 0 10px;
-  color: #94a3b8;
+  margin: 0 8px;
+  color: #caced5;
   font-weight: 400;
   font-size: 14px;
   user-select: none;
@@ -616,20 +616,19 @@ img {
 .breadcrumb-link {
   font-weight: 500;
   font-size: 15px;
-  color: #64748b;
+  color: #86868b;
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition: color 0.2s ease;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .breadcrumb-link:hover {
-  color: var(--navy);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--ink);
 }
 
 .breadcrumb-current {
-  font-weight: 650;
+  font-weight: 600;
   font-size: 15px;
   color: var(--ink);
   letter-spacing: -0.015em;

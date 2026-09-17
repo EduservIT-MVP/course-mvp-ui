@@ -22,14 +22,14 @@ export default function Header({
   const items = breadcrumbs || (
     course
       ? [
-          { label: "Workspace", to: "/" },
-          { label: "Courses", to: "/" },
-          { label: course.title || title || "Course", isCurrent: true },
-        ]
+        { label: "Workspace", to: "/" },
+        { label: "Courses", to: "/" },
+        { label: course.title || title || "Course", isCurrent: true },
+      ]
       : [
-          { label: "Workspace", to: "/" },
-          { label: title || "Courses", isCurrent: true },
-        ]
+        { label: "Workspace", to: "/" },
+        { label: title || "Courses", isCurrent: true },
+      ]
   )
 
   return (
@@ -55,7 +55,7 @@ export default function Header({
             </span>
           ))}
         </nav>
-        {subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
+
       </div>
 
       <div className="header-right">
