@@ -51,8 +51,26 @@ export default function PromptDialog({
         {message ? <p className="dialog-message">{message}</p> : null}
         
         {error ? (
-          <div className="form-error" style={{ marginBottom: "16px", marginTop: "-8px", fontSize: "13px" }}>
-            {error}
+          <div style={{
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            background: "rgba(255, 59, 48, 0.08)", 
+            color: "rgba(255, 59, 48, 1)", 
+            padding: "10px 14px", 
+            borderRadius: "12px", 
+            marginBottom: "16px",
+            marginTop: "12px",
+            fontSize: "13.5px", 
+            fontWeight: "500",
+            border: "1px solid rgba(255, 59, 48, 0.12)"
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span style={{ lineHeight: 1.4 }}>{error}</span>
           </div>
         ) : null}
 
