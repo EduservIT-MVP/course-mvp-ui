@@ -48,17 +48,18 @@ export default function PromptDialog({
         <h3 id={titleId}>{title}</h3>
         {message ? <p className="dialog-message">{message}</p> : null}
         
-        <div style={{ marginTop: "16px", marginBottom: "24px" }}>
+        <div className="field-floating" style={{ marginTop: "24px", marginBottom: "32px" }}>
           <input
             ref={inputRef}
             type="text"
-            className="field"
+            id="prompt-dialog-input"
             style={{ width: "100%" }}
-            placeholder={placeholder}
+            placeholder=" "
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={busy}
           />
+          <label htmlFor="prompt-dialog-input">{placeholder || "Category name"}</label>
         </div>
 
         <div className="dialog-actions">
