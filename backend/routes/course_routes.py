@@ -28,7 +28,7 @@ def get_course(course_id: str) -> Course | None:
 
 
 def apply_brief(course: Course, body: dict) -> None:
-    for key in ("title", "audience", "level", "duration", "objectives", "topics"):
+    for key in ("title", "audience", "level", "duration", "objectives", "topics", "category"):
         if key in body:
             setattr(course, key, body.get(key) or (getattr(course, key) if key in ("title", "level", "duration") else ""))
     if isinstance(body.get("lab"), dict):
@@ -49,6 +49,7 @@ def create_course():
     lab = body.get("lab") if isinstance(body.get("lab"), dict) else {}
     course = Course(
         title=body.get("title") or "Untitled course",
+        category=body.get("category") or "Uncategorized",
         audience=body.get("audience") or "",
         level=body.get("level") or "Intermediate",
         duration=body.get("duration") or "90 minutes",

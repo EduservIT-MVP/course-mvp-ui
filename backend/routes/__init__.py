@@ -12,6 +12,7 @@ from routes.auth_routes import auth_bp
 from routes.course_routes import courses_bp
 from routes.artifact_routes import artifacts_bp
 from routes.system_routes import system_bp
+from routes.category_routes import bp as category_bp
 
 
 def register_routes(app: Flask) -> None:
@@ -20,6 +21,7 @@ def register_routes(app: Flask) -> None:
     app.register_blueprint(auth_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(artifacts_bp)
+    app.register_blueprint(category_bp)
 
     swagger_ui = get_swaggerui_blueprint(
         SWAGGER_URL,

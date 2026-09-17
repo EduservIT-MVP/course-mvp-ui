@@ -713,6 +713,38 @@ img {
   width: 100%;
 }
 
+/* Course rows */
+.grouped-courses {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+}
+
+.course-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--surface-inset);
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 .field label,
 label.field {
   font-size: 13px;
@@ -2325,3 +2357,15 @@ label.field {
   margin-right: 4px;
 }
 
+.section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: transparent !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: none; /* Prevent interaction/hover entirely */
+}

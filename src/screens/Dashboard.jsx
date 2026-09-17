@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import Header from "../components/Header"
 import Sidebar from "../components/Sidebar"
 import Button from "../components/Button"
 import ConfirmDialog from "../components/ConfirmDialog"
 import StatusBanner from "../components/StatusBanner"
+import SectionLabel from "../components/SectionLabel"
 import { useAuth } from "../auth/context"
 import { useCourses } from "../hooks/useCourse"
 import { courseService } from "../api/courseService"
@@ -15,8 +16,11 @@ export default function Dashboard() {
   const { can } = useAuth()
   const { courses, loading, error, refresh } = useCourses()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const canCreate = can("course:create")
   const canDelete = can("course:delete")
+
+  const currentCategory = searchParams.get("category") || "All"
 
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -40,11 +44,29 @@ export default function Dashboard() {
     }
   }
 
+  // Filter courses by selected category
+  const filteredCourses = courses.filter(c => 
+    currentCategory === "All" ? true : (c.category || "Uncategorized") === currentCategory
+  )
+
+  const groupedCourses = filteredCourses.reduce((acc, c) => {
+    const cat = c.category || "Uncategorized"
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(c)
+    return acc
+  }, {})
+
+  const categories = Object.keys(groupedCourses).sort((a, b) => {
+    if (a === "Uncategorized") return 1
+    if (b === "Uncategorized") return -1
+    return a.localeCompare(b)
+  })
+
   return (
     <div className="app">
       <Sidebar mode="dashboard" />
       <div className="workspace">
-        <Header title="Courses" subtitle="Select a course or start a new brief" />
+        <Header title={currentCategory === "All" ? "Courses" : `${currentCategory} Courses`} subtitle="Select a course or start a new brief" />
         <main className="content">
           <section className="brief">
             <div className="brief-intro">
@@ -103,35 +125,42 @@ export default function Dashboard() {
                 ) : null}
               </div>
             ) : (
-              <div className="task-list">
-                {courses.map((course) => (
-                  <div key={course.id} className="task course-row">
-                    <Link className="course-link course-row-main" to={`/courses/${course.id}`}>
-                      <div className="task-marker">{(course.title || "?").charAt(0)}</div>
-                      <div className="course-copy">
-                        <h3>{course.title}</h3>
-                        <div className="course-meta">
-                          <span className={`status-chip tone-${statusTone(course.status)}`}>
-                            {statusLabel(course.status)}
-                          </span>
-                          {course.level ? <span className="meta-dot">{course.level}</span> : null}
+              <div className="grouped-courses">
+                {categories.map((cat) => (
+                  <div key={cat} className="course-category">
+                    <SectionLabel className="category-title">{cat}</SectionLabel>
+                    <div className="task-list">
+                      {groupedCourses[cat].map((course) => (
+                        <div key={course.id} className="task course-row">
+                          <Link className="course-link course-row-main" to={`/courses/${course.id}`}>
+                            <div className="task-marker">{(course.title || "?").charAt(0)}</div>
+                            <div className="course-copy">
+                              <h3>{course.title}</h3>
+                              <div className="course-meta">
+                                <span className={`status-chip tone-${statusTone(course.status)}`}>
+                                  {statusLabel(course.status)}
+                                </span>
+                                {course.level ? <span className="meta-dot">{course.level}</span> : null}
+                              </div>
+                            </div>
+                          </Link>
+                          {canDelete ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="course-delete-btn"
+                              aria-label={`Delete ${course.title || "course"}`}
+                              onClick={() => {
+                                setDeleteError("")
+                                setPendingDelete(course)
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          ) : null}
                         </div>
-                      </div>
-                    </Link>
-                    {canDelete ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="course-delete-btn"
-                        aria-label={`Delete ${course.title || "course"}`}
-                        onClick={() => {
-                          setDeleteError("")
-                          setPendingDelete(course)
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    ) : null}
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>

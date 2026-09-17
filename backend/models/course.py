@@ -59,6 +59,7 @@ class Course(db.Model):
     duration = db.Column(db.String(64), nullable=False, default="90 minutes")
     objectives = db.Column(db.Text, nullable=False, default="")
     topics = db.Column(db.Text, nullable=False, default="")
+    category = db.Column(db.String(50), nullable=True, default="Uncategorized")
     plan = db.Column(JSON, nullable=True)
     lab = db.Column(JSON, nullable=True)
     guide = db.Column(JSON, nullable=True)
@@ -112,6 +113,7 @@ class Course(db.Model):
             "id": self.id,
             "status": self.status,
             "title": self.title,
+            "category": self.category or "Uncategorized",
             "audience": self.audience or "",
             "level": self.level or "Intermediate",
             "duration": self.duration or "90 minutes",

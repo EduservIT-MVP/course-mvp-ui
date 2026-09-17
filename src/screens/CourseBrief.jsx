@@ -36,6 +36,15 @@ export default function CourseBrief({
 
         <div className="field-row">
           <label className="field">
+            Category
+            <input
+              placeholder="e.g., Sales Training, Onboarding, Engineering"
+              value={brief.category || ""}
+              disabled={readOnly}
+              onChange={(e) => onChange("category", e.target.value)}
+            />
+          </label>
+          <label className="field">
             Level
             <select
               value={brief.level}
@@ -47,6 +56,9 @@ export default function CourseBrief({
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="field-row">
           <label className="field">
             Duration
             <select

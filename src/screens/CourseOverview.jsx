@@ -1,6 +1,8 @@
 // Force HMR refresh
 import Button from "../components/Button"
 import StatusBanner from "../components/StatusBanner"
+import SectionLabel from "../components/SectionLabel"
+
 export default function CourseOverview({
   course,
   artifacts = [],
@@ -70,11 +72,11 @@ export default function CourseOverview({
           {/* Course Details Block */}
           {course?.details && course.details.length > 0 && (
             <div>
-              <h3 className="section-title">Course Details</h3>
+              <SectionLabel className="section-title">Course Details</SectionLabel>
               <div className="brief-card course-details-grid">
                 {course.details.map((detail, idx) => (
                   <div key={idx} className={`course-details-item ${idx < 2 ? 'flex-1' : 'flex-auto'}`}>
-                    <span className="course-details-label">{detail.label}</span>
+                    <SectionLabel className="course-details-label">{detail.label}</SectionLabel>
                     <div className="course-details-value">{detail.value}</div>
                   </div>
                 ))}

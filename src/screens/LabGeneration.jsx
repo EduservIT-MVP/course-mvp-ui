@@ -1,6 +1,7 @@
 import checkCircle from "../assets/check-circle.svg"
 import Button from "../components/Button"
 import Icon from "../components/Icon"
+import SectionLabel from "../components/SectionLabel"
 import StatusBanner from "../components/StatusBanner"
 
 /** Always render criteria as a list of strings (never iterate a raw string). */
@@ -85,13 +86,13 @@ export default function LabGeneration({
           <div className="lab-meta">
             {environment ? (
               <div className="lab-meta-item">
-                <span className="lab-meta-label">Environment</span>
+                <SectionLabel className="lab-meta-label">Environment</SectionLabel>
                 <span className="lab-meta-value">{environment}</span>
               </div>
             ) : null}
             {assets ? (
               <div className="lab-meta-item">
-                <span className="lab-meta-label">Assets provided</span>
+                <SectionLabel className="lab-meta-label">Assets provided</SectionLabel>
                 <span className="lab-meta-value">{assets}</span>
               </div>
             ) : null}

@@ -1,10 +1,41 @@
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import logo from "../assets/eduservit-logo.png"
-import check from "../assets/check.svg"
+import { FileText, Presentation, Beaker, BookOpen, LayoutDashboard, Book, Plus, Folder } from "lucide-react"
 import { STEPS } from "../data"
 import { statusLabel, statusTone } from "../workflow/states"
+import SectionLabel from "./SectionLabel"
+import { useCategories } from "../hooks/useCategory"
+import { categoryService } from "../api/categoryService"
+
+const STEP_ICONS = [FileText, Presentation, Beaker, BookOpen, LayoutDashboard]
 
 export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode = "workflow" }) {
+  const { categories, refresh: refreshCategories } = useCategories()
+  const [searchParams, setSearchParams] = useSearchParams()
+  
+  const currentCategory = searchParams.get("category") || "All"
+
+  const handleAddCategory = async () => {
+    const name = window.prompt("Enter new category name:")
+    if (name && name.trim()) {
+      try {
+        await categoryService.create(name.trim())
+        await refreshCategories()
+      } catch (err) {
+        alert("Failed to create category: " + (err.message || "Unknown error"))
+      }
+    }
+  }
+
+  const selectCategory = (catName) => {
+    if (catName === "All") {
+      searchParams.delete("category")
+    } else {
+      searchParams.set("category", catName)
+    }
+    setSearchParams(searchParams)
+  }
+
   return (
     <aside className="sidebar">
       <Link to="/" className="brand brand-link">
@@ -16,10 +47,11 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
 
       {mode === "workflow" ? (
         <nav className="workflow" aria-label="Build workflow">
-          <p className="workflow-label">Build workflow</p>
+          <SectionLabel className="workflow-label">Build workflow</SectionLabel>
           {STEPS.map((item, index) => {
             const done = index < step
             const active = index === step
+            const Icon = STEP_ICONS[index] || FileText
             return (
               <button
                 key={item.id}
@@ -29,7 +61,7 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
                 onClick={() => onSelect(index)}
               >
                 <span className={`step-marker${active ? " is-active" : ""}${done ? " is-done" : ""}`}>
-                  {done ? <img src={check} alt="" width={13} height={13} /> : index + 1}
+                  <Icon size={16} strokeWidth={2.5} />
                 </span>
                 <span className="step-label">{item.label}</span>
               </button>
@@ -38,11 +70,41 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
         </nav>
       ) : (
         <nav className="workflow" aria-label="Workspace">
-          <p className="workflow-label">Workspace</p>
-          <Link className="step is-active" to="/">
-            <span className="step-marker is-active">1</span>
-            <span className="step-label">Courses</span>
-          </Link>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingRight: "12px" }}>
+            <SectionLabel className="workflow-label" style={{ margin: 0 }}>Workspace</SectionLabel>
+            <button 
+              onClick={handleAddCategory}
+              style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)", padding: "4px" }}
+              title="Add Category"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+          
+          <button 
+            className={`step ${currentCategory === "All" ? "is-active" : ""}`} 
+            onClick={() => selectCategory("All")}
+            style={{ width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
+          >
+            <span className={`step-marker ${currentCategory === "All" ? "is-active" : ""}`}>
+              <Book size={16} strokeWidth={2.5} />
+            </span>
+            <span className="step-label">All Courses</span>
+          </button>
+
+          {categories.map(cat => (
+            <button 
+              key={cat.id}
+              className={`step ${currentCategory === cat.name ? "is-active" : ""}`} 
+              onClick={() => selectCategory(cat.name)}
+              style={{ width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
+            >
+              <span className={`step-marker ${currentCategory === cat.name ? "is-active" : ""}`}>
+                <Folder size={16} strokeWidth={2.5} />
+              </span>
+              <span className="step-label">{cat.name}</span>
+            </button>
+          ))}
         </nav>
       )}
 
