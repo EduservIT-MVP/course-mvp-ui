@@ -827,7 +827,7 @@ label.field {
 }
 
 /* ==========================================================================
-   FLOATING LABEL FIELD
+   FLOATING LABEL FIELD (Minimalist Apple Style)
    ========================================================================== */
 
 .field-floating {
@@ -837,40 +837,42 @@ label.field {
 }
 
 .field-floating input {
-  padding: 22px 14px 6px 14px;
-  height: 52px;
-  font-size: 15px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  padding: 24px 0 8px 0;
+  height: 56px;
+  font-size: 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   outline: none;
-  transition: all 0.2s ease;
+  color: var(--ink);
+  transition: border-color 0.3s ease;
 }
 
 .field-floating input:focus {
-  border-color: var(--ink);
-  background: var(--white);
+  border-bottom-color: var(--blue);
+  background: transparent;
 }
 
 .field-floating label {
   position: absolute;
-  top: 16px;
-  left: 15px;
-  font-size: 15px;
+  top: 18px;
+  left: 0;
+  font-size: 16px;
   color: var(--muted);
   pointer-events: none;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
   margin: 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .field-floating input:focus + label,
 .field-floating input:not(:placeholder-shown) + label {
-  top: 7px;
+  top: 0px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  color: var(--blue);
+  letter-spacing: 0.01em;
 }
 
 /* ==========================================================================
@@ -2040,15 +2042,15 @@ label.field {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   z-index: 100;
-  animation: backdrop-fade 0.18s ease-out;
+  animation: backdrop-fade 0.2s ease-out;
 }
 
 @keyframes backdrop-fade {
@@ -2063,48 +2065,52 @@ label.field {
 
 .dialog {
   width: 100%;
-  max-width: 440px;
-  background: var(--white);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-modal);
-  border: 1px solid var(--line);
-  padding: 28px;
-  animation: dialog-spring 0.25s var(--spring-easing);
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 32px;
+  animation: dialog-spring 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
 
 @keyframes dialog-spring {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.97) translateY(10px);
   }
 
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
 .dialog h3 {
-  margin: 0 0 8px;
+  margin: 0;
   font-family: var(--font-heading);
   font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--ink);
+  text-align: center;
 }
 
 .dialog-message {
-  margin: 0 0 24px;
+  margin: 12px 0 0 0;
   font-size: 14px;
-  line-height: 1.5;
   color: var(--muted);
+  line-height: 1.4;
+  text-align: center;
 }
 
 .dialog-actions {
   display: flex;
-  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 32px;
 }
 
 /* Apple Pill Toast Notification */
