@@ -14,7 +14,6 @@ from services.artifact_service import (
     render_pptx_to_slide_images,
 )
 from services.job_service import (
-    run_bg,
     job_generate_plan,
     job_generate_ppt,
     job_regenerate_slides,
@@ -30,7 +29,6 @@ __all__ = [
     "list_slide_images",
     "resolve_soffice",
     "render_pptx_to_slide_images",
-    "run_bg",
     "job_generate_plan",
     "job_generate_ppt",
     "job_regenerate_slides",

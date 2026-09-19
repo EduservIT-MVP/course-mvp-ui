@@ -13,6 +13,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   busy = false,
   danger = true,
+  error = null,
   onConfirm,
   onCancel,
 }) {
@@ -36,6 +37,11 @@ export default function ConfirmDialog({
       <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
         <h3 id={titleId}>{title}</h3>
         {message ? <p className="dialog-message">{message}</p> : null}
+        {error ? (
+          <div style={{ color: "var(--destructive)", marginBottom: "16px", padding: "12px", background: "var(--destructive-soft)", borderRadius: "var(--radius-sm)" }}>
+            {error}
+          </div>
+        ) : null}
         <div className="dialog-actions">
           <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={busy}>
             {cancelLabel}

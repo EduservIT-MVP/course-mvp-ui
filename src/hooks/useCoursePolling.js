@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { isGenerating } from "../workflow/states"
 
-const DEFAULT_INTERVAL_MS = 2000
+const DEFAULT_INTERVAL_MS = 5000
 
 /**
  * Poll while a course is in a *_GENERATING status.

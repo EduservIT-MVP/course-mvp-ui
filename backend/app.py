@@ -26,6 +26,7 @@ from __future__ import annotations
 import sys
 from flask import Flask
 from flask_cors import CORS
+from celery import Celery, Task
 
 from config import (
     HOST,
@@ -50,6 +51,18 @@ from agents import (
     agent_regenerate_slides,
 )
 
+def celery_init_app(app: Flask) -> Celery:
+    class FlaskTask(Task):
+        def __call__(self, *args: object, **kwargs: object) -> object:
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery_app = Celery(app.name, task_cls=FlaskTask)
+    celery_app.config_from_object(app.config["CELERY"])
+    celery_app.set_default()
+    app.extensions["celery"] = celery_app
+    return celery_app
+
 
 def create_app() -> Flask:
     """Application factory: initialize and wire all components."""
@@ -64,11 +77,21 @@ def create_app() -> Flask:
 
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    
+    app.config.from_mapping(
+        CELERY=dict(
+            broker_url="redis://localhost:6379/0",
+            result_backend="redis://localhost:6379/0",
+            task_ignore_result=True,
+        ),
+    )
 
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
     setup_jwt_handlers(jwt)
+    
+    celery_init_app(app)
 
     # Configure CORS
     CORS(
@@ -91,6 +114,7 @@ def create_app() -> Flask:
 
 # Module-level application instance for WSGI servers (Gunicorn / Flask CLI)
 app = create_app()
+celery = app.extensions["celery"]
 
 
 def seed():

@@ -26,9 +26,18 @@ For complete step-by-step instructions on integrating standalone agent microserv
    AGENT_LAB_URL=http://localhost:8002/generate-lab
    AGENT_LAB_GUIDE_URL=http://localhost:8003/generate-guide
    ```
-2. **Inspect the reference implementation**:
+2. **Run Local Dependencies**:
+   The backend uses **Celery and Redis** for a scalable, asynchronous pipeline when generating courses. You must run these services:
+   ```bash
+   # Start Redis (e.g. via Docker)
+   docker run -d -p 6379:6379 redis
+   
+   # Start the Celery Worker (in the backend folder)
+   celery -A app.celery worker --pool=threads --loglevel=info
+   ```
+3. **Inspect the reference implementation**:
    See `backend/mock_agents_server.py` for working examples of all three endpoints.
-3. **Verify with the end-to-end smoke test**:
+4. **Verify with the end-to-end smoke test**:
    ```bash
    cd backend
    uv run python app.py smoke

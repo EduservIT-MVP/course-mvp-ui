@@ -7,12 +7,12 @@ from __future__ import annotations
 import shutil
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity
+from datetime import timezone
 from extensions import db, ok, err, utcnow
 from config import ARTIFACTS_DIR
 from models.course import Course
 from auth.security import require_permission
 from services.job_service import (
-    run_bg,
     job_generate_plan,
     job_generate_ppt,
     job_regenerate_slides,
@@ -83,6 +83,16 @@ def get_course_route(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
+        
+    # Auto-recover stuck generations if the worker died (timeout after 5 mins)
+    if course.status and "GENERATING" in course.status:
+        updated_aware = course.updated_at.replace(tzinfo=timezone.utc) if course.updated_at else utcnow()
+        elapsed = (utcnow() - updated_aware).total_seconds()
+        if elapsed > 300:  # 5 minutes timeout
+            course.status = "FAILED"
+            course.error = "Agent generation timed out or the worker was interrupted. Please try again."
+            db.session.commit()
+            
     return ok(course.to_dict())
 
 
@@ -128,7 +138,7 @@ def plan_generate(course_id: str):
         return err(str(exc), "invalid_transition", 409)
     course.stage = "Generating course plan"
     db.session.commit()
-    run_bg(job_generate_plan, course.id)
+    job_generate_plan.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -152,7 +162,7 @@ def plan_approve(course_id: str):
         return err(str(exc), "invalid_transition", 409)
     course.stage = "Generating presentation"
     db.session.commit()
-    run_bg(job_generate_ppt, course.id)
+    job_generate_ppt.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -168,7 +178,7 @@ def ppt_generate(course_id: str):
         return err(str(exc), "invalid_transition", 409)
     course.stage = "Generating presentation"
     db.session.commit()
-    run_bg(job_generate_ppt, course.id)
+    job_generate_ppt.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -190,7 +200,7 @@ def ppt_regenerate(course_id: str):
             return err(str(exc), "invalid_transition", 409)
     course.stage = "Regenerating presentation"
     db.session.commit()
-    run_bg(job_generate_ppt, course.id)
+    job_generate_ppt.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -207,7 +217,7 @@ def ppt_slides_regenerate(course_id: str):
     course.stage = "Regenerating tagged slides"
     course.updated_at = utcnow()
     db.session.commit()
-    run_bg(job_regenerate_slides, course.id, body.get("slides") or [], body.get("prompt") or "", body.get("notes") or body.get("prompt") or "")
+    job_regenerate_slides.delay(course.id, body.get("slides") or [], body.get("prompt") or "", body.get("notes") or body.get("prompt") or "")
     return ok(course.to_dict())
 
 
@@ -229,7 +239,7 @@ def lab_generate(course_id: str):
     course.stage = "Generating lab"
     course.updated_at = utcnow()
     db.session.commit()
-    run_bg(job_generate_lab, course.id, body if isinstance(body, dict) else {})
+    job_generate_lab.delay(course.id, body if isinstance(body, dict) else {})
     return ok(course.to_dict())
 
 
@@ -245,7 +255,7 @@ def lab_regenerate(course_id: str):
     course.stage = "Regenerating lab"
     course.updated_at = utcnow()
     db.session.commit()
-    run_bg(job_generate_lab, course.id, course.lab or {})
+    job_generate_lab.delay(course.id, course.lab or {})
     return ok(course.to_dict())
 
 
@@ -263,7 +273,7 @@ def lab_approve(course_id: str):
     course.stage = "Generating lab guide"
     course.updated_at = utcnow()
     db.session.commit()
-    run_bg(job_generate_guide, course.id)
+    job_generate_guide.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -279,5 +289,5 @@ def lab_guide_generate(course_id: str):
     course.stage = "Generating lab guide"
     course.updated_at = utcnow()
     db.session.commit()
-    run_bg(job_generate_guide, course.id)
+    job_generate_guide.delay(course.id)
     return ok(course.to_dict())

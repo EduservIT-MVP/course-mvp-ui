@@ -221,6 +221,10 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_pptx = "pptx" in self.agent_type or "pptx" in path or "ppt" in path
         is_lab = "lab" in self.agent_type and "guide" not in self.agent_type or "generate-lab" in path
         is_guide = "guide" in self.agent_type or "generate-guide" in path
+        
+        import time
+        print(f"  [Agent] Simulating long-running generation. Sleeping for 180s...", flush=True)
+        time.sleep(180)
 
         if is_pptx:
             pptx_bytes = get_mock_pptx_bytes()

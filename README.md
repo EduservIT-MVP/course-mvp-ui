@@ -21,26 +21,51 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Run locally (Without Docker)
 
-Start the Flask API first, then run the React app.
+The CourseForge architecture uses asynchronous background workers and external agent services. You will need to run multiple services to operate the full stack locally.
 
+### 1. Start Redis
+Redis is required for the Celery message broker.
+```bash
+# Via Docker
+docker run -d -p 6379:6379 redis
+
+# Or via Homebrew (macOS)
+brew services start redis
+```
+
+### 2. Start the Backend Services
+Open **three** separate terminals in the `backend` directory.
+
+**Terminal A: Mock Agent Servers**
 ```bash
 cd backend
 uv venv
 uv pip install -r requirements.txt
+uv run python mock_agents_server.py
+```
+
+**Terminal B: Celery Worker**
+```bash
+cd backend
+uv run celery -A app.celery worker --pool=threads --loglevel=info
+```
+
+**Terminal C: Flask API**
+```bash
+cd backend
 uv run python app.py seed
 uv run python app.py
+```
 
-# In a second terminal
-cd ..
+### 3. Start the Frontend
+Open a **fourth** terminal in the root directory.
+
+```bash
 npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually:
-
-- http://localhost:5173/
-
-If that port is busy, Vite uses the next one (for example `5174`).
+Open the URL Vite prints, usually [http://localhost:5173/](http://localhost:5173/).
 
 ### Walk the UI
 

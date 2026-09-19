@@ -12,6 +12,7 @@ export function useAuthImageUrl(path) {
     let objectUrl = null
 
     async function load() {
+      
       setUrl(null)
       setError(null)
       if (!path) {

@@ -21,6 +21,9 @@ export function useCategories() {
 
   useEffect(() => {
     fetchCategories()
+    const handleUpdate = () => fetchCategories()
+    window.addEventListener("categories-updated", handleUpdate)
+    return () => window.removeEventListener("categories-updated", handleUpdate)
   }, [fetchCategories])
 
   return { categories, loading, error, refresh: fetchCategories }

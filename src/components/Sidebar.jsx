@@ -31,6 +31,7 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
       setCreating(true)
       await categoryService.create(name)
       await refreshCategories()
+      window.dispatchEvent(new Event("categories-updated"))
       setPromptOpen(false)
     } catch (err) {
       setPromptError(err.message || "Unknown error occurred")
@@ -69,7 +70,6 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
                 key={item.id}
                 type="button"
                 className={`step${active ? " is-active" : ""}`}
-                disabled={index > maxStep}
                 onClick={() => onSelect(index)}
               >
                 <span className={`step-marker${active ? " is-active" : ""}${done ? " is-done" : ""}`}>

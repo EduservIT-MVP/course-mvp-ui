@@ -6,7 +6,10 @@ import { resolveWorkflowScreen, SCREEN } from "./screens"
  *
  * Later steps replace temporary shared components with one component per screen.
  */
-export default function WorkflowRouter({ course, screens }) {
+export default function WorkflowRouter({ course, screens, step = null }) {
+  if (step !== null && screens[step] !== undefined) {
+    return screens[step]
+  }
   const screen = resolveWorkflowScreen(course?.status)
   return screens[screen] ?? screens[SCREEN.COURSE_BRIEF] ?? null
 }

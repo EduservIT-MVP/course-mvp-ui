@@ -5,9 +5,9 @@ Background worker thread jobs for asynchronous course generation stages.
 from __future__ import annotations
 
 import logging
-import threading
 from flask import current_app
 from extensions import db, utcnow
+from celery import shared_task
 from config import ARTIFACTS_DIR
 from models.course import Course
 from agents.pptx_agent import agent_build_pptx
@@ -24,19 +24,6 @@ from services.artifact_service import (
 logger = logging.getLogger(__name__)
 
 
-def run_bg(fn, *args, **kwargs):
-    """Run a callable asynchronously within the active Flask application context."""
-    app = current_app._get_current_object()
-
-    def runner():
-        with app.app_context():
-            try:
-                fn(*args, **kwargs)
-            except Exception:
-                app.logger.exception("Background job failed")
-
-    threading.Thread(target=runner, daemon=True).start()
-
 
 def _fail(course_id: str, failed_screen: int, message: str) -> None:
     course = db.session.get(Course, course_id)
@@ -49,6 +36,7 @@ def _fail(course_id: str, failed_screen: int, message: str) -> None:
     db.session.commit()
 
 
+@shared_task(ignore_result=True)
 def job_generate_plan(course_id: str) -> None:
     course = db.session.get(Course, course_id)
     if not course:
@@ -65,6 +53,7 @@ def job_generate_plan(course_id: str) -> None:
         _fail(course_id, 1, str(exc) or "Plan generation failed.")
 
 
+@shared_task(ignore_result=True)
 def job_generate_ppt(course_id: str) -> None:
     course = db.session.get(Course, course_id)
     if not course:
@@ -94,6 +83,7 @@ def job_generate_ppt(course_id: str) -> None:
         _fail(course_id, 1, str(exc) or "PPT generation failed.")
 
 
+@shared_task(ignore_result=True)
 def job_regenerate_slides(course_id: str, slides: list, prompt: str, notes: str) -> None:
     course = db.session.get(Course, course_id)
     if not course:
@@ -115,6 +105,7 @@ def job_regenerate_slides(course_id: str, slides: list, prompt: str, notes: str)
         _fail(course_id, 1, str(exc) or "Slide regeneration failed.")
 
 
+@shared_task(ignore_result=True)
 def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
     course = db.session.get(Course, course_id)
     if not course:
@@ -137,6 +128,7 @@ def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
         _fail(course_id, 2, str(exc) or "Lab generation failed.")
 
 
+@shared_task(ignore_result=True)
 def job_generate_guide(course_id: str) -> None:
     course = db.session.get(Course, course_id)
     if not course:

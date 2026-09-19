@@ -10,3 +10,5 @@ python-pptx==1.0.2
 pymupdf==1.28.2
 flask-swagger-ui==4.11.1
 PyYAML==6.0.2
+celery[redis]==5.3.6
+redis==5.0.3

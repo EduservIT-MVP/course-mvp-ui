@@ -33,7 +33,39 @@ Each agent can be built in **any language or framework** (Python/FastAPI, Node.j
 
 ---
 
-## 2. Configuration in Backend
+## 2. Scalable Asynchronous Pipeline
+
+To ensure the backend remains highly available while waiting for long-running AI agents (which can take 5+ minutes to generate content), the system uses a fault-tolerant asynchronous task queue powered by **Celery** and **Redis**.
+
+- **Web Requests**: Return immediately with HTTP 200 and are non-blocking. The frontend polls for status updates.
+- **Celery Workers**: Run outside the Flask web process and handle the blocking HTTP connections to your standalone agents. If the Flask web server crashes or restarts, Celery guarantees that in-flight background jobs are not lost and database threadlocks do not occur.
+
+### Running the Backend Locally
+
+To test agent integration locally, you must start the Redis broker and the Celery worker alongside the Flask app:
+
+1. **Start Redis**:
+   ```bash
+   # Via Docker
+   docker run -d -p 6379:6379 redis
+
+   # Or via Homebrew (macOS)
+   brew services start redis
+   ```
+2. **Start the Celery Worker**:
+   Open a new terminal in the `backend` directory:
+   ```bash
+   celery -A app.celery worker --pool=threads --loglevel=info
+   ```
+3. **Start the Flask Server**:
+   Open another terminal in the `backend` directory:
+   ```bash
+   uv run python app.py
+   ```
+
+---
+
+## 3. Configuration in Backend
 
 Set the agent endpoints in `backend/.env`:
 
@@ -54,7 +86,7 @@ REQUIRE_AGENT_ENDPOINTS=true
 
 ---
 
-## 3. Agent 1: PPTX Presentation Agent
+## 4. Agent 1: PPTX Presentation Agent
 
 ### Contract Overview
 - **Environment Variable**: `AGENT_PPTX_URL`
@@ -126,7 +158,7 @@ async def build_pptx(payload: dict):
 
 ---
 
-## 4. Agent 2: Practical Lab Agent
+## 5. Agent 2: Practical Lab Agent
 
 ### Contract Overview
 - **Environment Variable**: `AGENT_LAB_URL`
@@ -238,7 +270,7 @@ async def generate_lab(payload: dict):
 
 ---
 
-## 5. Agent 3: Lab Guide Agent
+## 6. Agent 3: Lab Guide Agent
 
 ### Contract Overview
 - **Environment Variable**: `AGENT_LAB_GUIDE_URL`
@@ -312,7 +344,7 @@ Your agent must return either `{"guide": { ... }}` or the guide dictionary direc
 
 ---
 
-## 6. Node.js / Express Example (All 3 in One Service)
+## 7. Node.js / Express Example (All 3 in One Service)
 
 If you prefer building in TypeScript / JavaScript:
 
@@ -373,7 +405,7 @@ app.listen(8001, () => console.log('Agent server listening on port 8001'));
 
 ---
 
-## 7. Verifying Integration
+## 8. Verifying Integration
 
 ### 1. Check Backend Health
 Query the backend health route to confirm your endpoints are recognized:
@@ -412,6 +444,6 @@ SMOKE OK
 
 ---
 
-## 8. Reference Implementation
+## 9. Reference Implementation
 
 Check [`backend/mock_agents_server.py`](file:///Users/uvarajj/Documents/Thamilselvan/eduservit/course-mvp-ui/backend/mock_agents_server.py) for an active, working standalone server demonstrating all three endpoints with request logging and CORS support.

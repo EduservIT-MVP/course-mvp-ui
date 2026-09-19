@@ -9,6 +9,10 @@ export const categoryService = {
     return request("/categories", { method: "POST", body: { name } })
   },
 
+  async update(id, name) {
+    return request(`/categories/${id}`, { method: "PUT", body: { name } })
+  },
+
   async remove(id) {
     return request(`/categories/${id}`, { method: "DELETE" })
   },

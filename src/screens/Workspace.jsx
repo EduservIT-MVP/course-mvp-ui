@@ -290,7 +290,7 @@ export default function Workspace() {
       }
       canRegenerate={
         can("plan:regenerate") &&
-        (status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL || failed)
+        (Boolean(course?.plan) || status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL || failed)
       }
       onApprove={handleApprovePlan}
       onRegenerate={handleRegeneratePlan}
@@ -313,12 +313,12 @@ export default function Workspace() {
       onStartLab={handleStartLab}
       busy={busy}
       downloading={downloading}
-      generating={false}
+      generating={status === WORKFLOW.PPT_GENERATING || status === WORKFLOW.PLAN_GENERATING}
       failed={failed}
       error={errorMessage || course?.error}
       canApprove={false}
       canRegenerate={
-        can("ppt:regenerate") && (status === WORKFLOW.PPT_READY || failed)
+        can("ppt:regenerate") && (Boolean(ppt) || status === WORKFLOW.PPT_READY || failed)
       }
       canDownloadPpt={can("ppt:download") && Boolean(ppt)}
       canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY && Boolean(ppt)}
@@ -348,7 +348,7 @@ export default function Workspace() {
       failed={failed}
       error={errorMessage || course?.error}
       canApprove={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
-      canRegenerate={can("lab:regenerate") && (status === WORKFLOW.LAB_REVIEW || failed)}
+      canRegenerate={can("lab:regenerate") && (Boolean(course?.lab) || status === WORKFLOW.LAB_REVIEW || failed)}
       section={guideSection}
       onSelectSection={setGuideSection}
     />
@@ -378,7 +378,7 @@ export default function Workspace() {
         step={step}
         maxStep={maxStep}
         onSelect={(idx) => {
-          if (idx <= maxStep) setActiveStep(idx)
+          setActiveStep(idx)
         }}
         course={routedCourse}
       />
@@ -424,7 +424,13 @@ export default function Workspace() {
               serverStep={serverStep}
               screens={{
                 0: briefNode,
-                1: ppt ? pptNode : planReviewNode,
+                1: status === WORKFLOW.PLAN_GENERATING 
+                    ? planGeneratingNode 
+                    : status === WORKFLOW.PPT_GENERATING 
+                      ? pptGeneratingNode 
+                      : ppt 
+                        ? pptNode 
+                        : planReviewNode,
                 2: labNode,
                 3: guideNode,
                 4: overviewNode,
