@@ -26,7 +26,8 @@ export default function PptAgent({
   ppt,
 }) {
   const [detectedSlideCount, setDetectedSlideCount] = useState(0)
-  const planSlides = course?.plan?.slides
+  const planSlides = course?.plan?.slides || course?.pptPlan?.slides || []
+
 
   const slides = useMemo(() => {
     const plans = planSlides || []

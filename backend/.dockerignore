@@ -1,9 +1,28 @@
+# Python runtime artifacts
 .venv/
 __pycache__/
 *.py[cod]
-*.db
-artifacts/*
-!artifacts/.gitkeep
-.env
+*.pyo
+*.pyd
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+
+# Database & secrets
+*.db
+*.sqlite3
+.env
+.env.*
+!.env.example
+
+# Artifacts & generated files (mounted as Docker volume at runtime)
+artifacts/*
+!artifacts/.gitkeep
+instance/
+
+# Dev-only / IDE files
+skills-lock.json
+query_db.py
+.DS_Store
+.vscode/
+.idea/

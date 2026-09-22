@@ -11,7 +11,7 @@ import urllib.request
 from extensions import db
 from models.user import User
 from models.course import Course
-from agents.plan_agent import agent_generate_plan
+from agents.pptx_agent import agent_generate_ppt_plan
 from agents.lab_agent import agent_generate_lab
 from agents.guide_agent import agent_generate_guide
 from services.artifact_service import (
@@ -46,7 +46,7 @@ def seed(app):
                 user.role = item["role"]
                 user.username = item["email"]
             user.set_password(DEMO_PASSWORD)
-        db.session.commit()
+            db.session.commit()
         instructor = User.query.filter_by(email="instructor@eduservit.local").first()
         Course.query.delete()
         db.session.commit()
@@ -77,7 +77,7 @@ def seed(app):
             stage="Plan ready for approval",
             lab={"scenario": "Zero trust workshop", "environment": "Browser workspace", "assets": ""},
         )
-        waiting.plan = agent_generate_plan(waiting.to_dict())
+        waiting.ppt_plan = agent_generate_ppt_plan(waiting.to_dict())
         db.session.add(waiting)
         db.session.flush()
 
@@ -93,11 +93,14 @@ def seed(app):
             stage="Presentation ready",
             lab={"scenario": "MFA workshop", "environment": "Browser workspace", "assets": "Policy template"},
         )
-        ppt_ready.plan = agent_generate_plan(ppt_ready.to_dict())
+        ppt_ready.ppt_plan = agent_generate_ppt_plan(ppt_ready.to_dict())
         db.session.add(ppt_ready)
         db.session.flush()
         write_ppt_artifact(ppt_ready)
-        write_ppt_slide_images(ppt_ready)
+        try:
+            write_ppt_slide_images(ppt_ready)
+        except Exception:
+            pass  # LibreOffice not available in this environment — slide images skipped
 
         lab_review = Course(
             title="SSO Lab Course",
@@ -110,12 +113,15 @@ def seed(app):
             owner_id=instructor.id,
             stage="Lab ready for approval",
         )
-        lab_review.plan = agent_generate_plan(lab_review.to_dict())
+        lab_review.ppt_plan = agent_generate_ppt_plan(lab_review.to_dict())
         lab_review.lab = agent_generate_lab(lab_review.to_dict())
         db.session.add(lab_review)
         db.session.flush()
         write_ppt_artifact(lab_review)
-        write_ppt_slide_images(lab_review)
+        try:
+            write_ppt_slide_images(lab_review)
+        except Exception:
+            pass  # LibreOffice not available — slide images skipped
 
         complete = Course(
             title="Access Reviews Package",
@@ -128,13 +134,16 @@ def seed(app):
             owner_id=instructor.id,
             stage="Course package complete",
         )
-        complete.plan = agent_generate_plan(complete.to_dict())
+        complete.ppt_plan = agent_generate_ppt_plan(complete.to_dict())
         complete.lab = agent_generate_lab(complete.to_dict())
         complete.guide = agent_generate_guide(complete.to_dict(), complete.lab)
         db.session.add(complete)
         db.session.flush()
         write_ppt_artifact(complete)
-        write_ppt_slide_images(complete)
+        try:
+            write_ppt_slide_images(complete)
+        except Exception:
+            pass  # LibreOffice not available — slide images skipped
         write_lab_artifact(complete)
         write_guide_artifact(complete)
         db.session.commit()

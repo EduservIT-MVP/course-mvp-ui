@@ -6,14 +6,17 @@ import { WORKFLOW } from "./states"
  */
 export const SCREEN = {
   COURSE_BRIEF: "COURSE_BRIEF",
-  PLAN_GENERATING: "PLAN_GENERATING",
-  PLAN_REVIEW: "PLAN_REVIEW",
+  PPT_PLAN_GENERATING: "PPT_PLAN_GENERATING",
+  PPT_PLAN_REVIEW: "PPT_PLAN_REVIEW",
   PPT_GENERATING: "PPT_GENERATING",
   PPT_READY: "PPT_READY",
+  LAB_PLAN_GENERATING: "LAB_PLAN_GENERATING",
+  LAB_PLAN_REVIEW: "LAB_PLAN_REVIEW",
   LAB_GENERATING: "LAB_GENERATING",
   LAB_REVIEW: "LAB_REVIEW",
-  /** Shown after lab approval when guide has not been started yet (future explicit action). */
   LAB_GUIDE_ACTION: "LAB_GUIDE_ACTION",
+  LAB_GUIDE_PLAN_GENERATING: "LAB_GUIDE_PLAN_GENERATING",
+  LAB_GUIDE_PLAN_REVIEW: "LAB_GUIDE_PLAN_REVIEW",
   LAB_GUIDE_GENERATING: "LAB_GUIDE_GENERATING",
   COMPLETE: "COMPLETE",
   FAILED: "FAILED",
@@ -25,29 +28,38 @@ export const SCREEN = {
  */
 const SCREEN_BY_STATUS = {
   [WORKFLOW.SELECT_COURSE]: SCREEN.COURSE_BRIEF,
-  [WORKFLOW.PLAN_GENERATING]: SCREEN.PLAN_GENERATING,
-  [WORKFLOW.PLAN_REVIEW]: SCREEN.PLAN_REVIEW,
-  [WORKFLOW.WAITING_FOR_APPROVAL]: SCREEN.PLAN_REVIEW,
+  [WORKFLOW.PPT_PLAN_GENERATING]: SCREEN.PPT_PLAN_GENERATING,
+  [WORKFLOW.PPT_PLAN_REVIEW]: SCREEN.PPT_PLAN_REVIEW,
+  [WORKFLOW.WAITING_FOR_APPROVAL]: SCREEN.PPT_PLAN_REVIEW,
   [WORKFLOW.PPT_GENERATING]: SCREEN.PPT_GENERATING,
   [WORKFLOW.PPT_READY]: SCREEN.PPT_READY,
   [WORKFLOW.REGENERATE]: SCREEN.PPT_GENERATING,
+  [WORKFLOW.LAB_PLAN_GENERATING]: SCREEN.LAB_PLAN_GENERATING,
+  [WORKFLOW.LAB_PLAN_REVIEW]: SCREEN.LAB_PLAN_REVIEW,
   [WORKFLOW.LAB_GENERATING]: SCREEN.LAB_GENERATING,
   [WORKFLOW.LAB_REVIEW]: SCREEN.LAB_REVIEW,
+  [WORKFLOW.LAB_APPROVED]: SCREEN.LAB_GUIDE_ACTION,
+  [WORKFLOW.LAB_GUIDE_PLAN_GENERATING]: SCREEN.LAB_GUIDE_PLAN_GENERATING,
+  [WORKFLOW.LAB_GUIDE_PLAN_REVIEW]: SCREEN.LAB_GUIDE_PLAN_REVIEW,
   [WORKFLOW.LAB_GUIDE_GENERATING]: SCREEN.LAB_GUIDE_GENERATING,
   [WORKFLOW.COMPLETE]: SCREEN.COMPLETE,
   [WORKFLOW.FAILED]: SCREEN.FAILED,
 }
 
-/** Sidebar / header step index (0 brief · 1 ppt · 2 lab · 3 guide) for each screen. */
+/** Sidebar / header step index (0 brief · 1 ppt · 2 lab · 3 guide · 4 overview) for each screen. */
 const SIDEBAR_STEP_BY_SCREEN = {
   [SCREEN.COURSE_BRIEF]: 0,
-  [SCREEN.PLAN_GENERATING]: 1,
-  [SCREEN.PLAN_REVIEW]: 1,
+  [SCREEN.PPT_PLAN_GENERATING]: 1,
+  [SCREEN.PPT_PLAN_REVIEW]: 1,
   [SCREEN.PPT_GENERATING]: 1,
   [SCREEN.PPT_READY]: 1,
+  [SCREEN.LAB_PLAN_GENERATING]: 2,
+  [SCREEN.LAB_PLAN_REVIEW]: 2,
   [SCREEN.LAB_GENERATING]: 2,
-  [SCREEN.LAB_REVIEW]: 3,
-  [SCREEN.LAB_GUIDE_ACTION]: 3,
+  [SCREEN.LAB_REVIEW]: 2,
+  [SCREEN.LAB_GUIDE_ACTION]: 2,
+  [SCREEN.LAB_GUIDE_PLAN_GENERATING]: 3,
+  [SCREEN.LAB_GUIDE_PLAN_REVIEW]: 3,
   [SCREEN.LAB_GUIDE_GENERATING]: 3,
   [SCREEN.COMPLETE]: 4,
   [SCREEN.FAILED]: null, // use failedScreen
@@ -77,20 +89,28 @@ export function headerMetaForScreen(screen) {
   switch (screen) {
     case SCREEN.COURSE_BRIEF:
       return { header: "Course brief", subtitle: "" }
-    case SCREEN.PLAN_GENERATING:
-      return { header: "Generating plan", subtitle: "" }
-    case SCREEN.PLAN_REVIEW:
-      return { header: "Approve plan", subtitle: "" }
+    case SCREEN.PPT_PLAN_GENERATING:
+      return { header: "Generating PPT plan", subtitle: "" }
+    case SCREEN.PPT_PLAN_REVIEW:
+      return { header: "Approve PPT plan", subtitle: "" }
     case SCREEN.PPT_GENERATING:
       return { header: "Generating PPT", subtitle: "" }
     case SCREEN.PPT_READY:
       return { header: "Presentation", subtitle: "" }
+    case SCREEN.LAB_PLAN_GENERATING:
+      return { header: "Generating lab plan", subtitle: "" }
+    case SCREEN.LAB_PLAN_REVIEW:
+      return { header: "Approve lab plan", subtitle: "" }
     case SCREEN.LAB_GENERATING:
       return { header: "Generating lab", subtitle: "" }
     case SCREEN.LAB_REVIEW:
       return { header: "Approve lab", subtitle: "" }
     case SCREEN.LAB_GUIDE_ACTION:
       return { header: "Lab guide", subtitle: "" }
+    case SCREEN.LAB_GUIDE_PLAN_GENERATING:
+      return { header: "Generating guide plan", subtitle: "" }
+    case SCREEN.LAB_GUIDE_PLAN_REVIEW:
+      return { header: "Approve guide plan", subtitle: "" }
     case SCREEN.LAB_GUIDE_GENERATING:
       return { header: "Generating guide", subtitle: "" }
     case SCREEN.COMPLETE:

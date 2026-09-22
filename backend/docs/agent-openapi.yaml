@@ -1,0 +1,503 @@
+openapi: 3.0.3
+info:
+  title: EduServ IT Real Agents API Specification
+  description: |
+    OpenAPI 3.0 specification for external AI Agents integrating with the EduServ IT Platform.
+    
+    ## URL Dispatch Notes
+    - **PPT Agent**: Both plan and generate calls go to the SAME `AGENT_PPTX_URL`. 
+      Distinguish plan vs generate on the agent side by checking if `course.ppt_plan` is present.
+    - **Lab Agent**: All calls go to `AGENT_LAB_URL` directly.
+    - **Guide Agent (Plan)**: Backend appends `/plan` to `AGENT_LAB_GUIDE_URL`.
+    - **Guide Agent (Full)**: Backend calls `AGENT_LAB_GUIDE_URL` bare root.
+    
+    ## Environment Variable Configuration (backend/.env)
+    ```
+    AGENT_PPTX_URL=http://localhost:8001/build-pptx    # alias: AGENT_PPT_URL
+    AGENT_LAB_URL=http://localhost:8002/generate-lab
+    AGENT_LAB_GUIDE_URL=http://localhost:8003/generate-guide   # alias: AGENT_GUIDE_URL
+    AGENT_TIMEOUT_SECONDS=30
+    ```
+  version: 1.0.0
+servers:
+  - url: http://localhost:8001
+    description: PPT Agent Server (AGENT_PPTX_URL)
+  - url: http://localhost:8002
+    description: Lab Agent Server (AGENT_LAB_URL)
+  - url: http://localhost:8003
+    description: Lab Guide Agent Server (AGENT_LAB_GUIDE_URL)
+
+paths:
+  /build-pptx:
+    post:
+      summary: PPT Agent — Generate Plan or Generate PPTX
+      description: |
+        This single endpoint handles BOTH plan generation and PPTX binary generation.
+        The backend calls this URL for both operations — differentiate internally by checking
+        whether `course.ppt_plan` is present in the payload.
+        
+        - **Plan call** (no `ppt_plan`): Return JSON with `summary`, `sections`, `slides` array.
+        - **Generate call** (`ppt_plan` present): Return binary `.pptx` file bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PPTPlanRequest'
+                - $ref: '#/components/schemas/PPTXGenerateRequest'
+            examples:
+              plan_request:
+                summary: Plan generation (no ppt_plan)
+                value:
+                  course:
+                    id: "7966d004-3f17-4959-887e-13bc74d71e86"
+                    title: "Event-Driven Microservices"
+                    topics: "Kafka\nCQRS\nEvent Sourcing"
+                    objectives: "Implement Kafka consumer idempotency"
+                    level: "Intermediate"
+                    duration: "45 min"
+              generate_request:
+                summary: PPTX generation (ppt_plan present)
+                value:
+                  course:
+                    id: "7966d004-3f17-4959-887e-13bc74d71e86"
+                    title: "Event-Driven Microservices"
+                    ppt_plan:
+                      summary: "Event-Driven Microservices · 45 min · 6 slides"
+                      sections: 6
+                      slides:
+                        - id: 1
+                          title: "1. Core Concept"
+                          kicker: "FOUNDATION"
+                          heading: "Event Streaming vs Request-Response"
+                          body: "• Async logs replace HTTP coupling."
+                          notes: "Introduce the motivation."
+      responses:
+        '200':
+          description: |
+            For plan calls: JSON with slide outline.
+            For generate calls: Binary PPTX file bytes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PPTPlanResponse'
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema:
+                type: string
+                format: binary
+                description: Raw .pptx file bytes
+
+  /generate-lab:
+    post:
+      summary: Lab Agent — Generate Lab Exercises & Artifacts
+      description: |
+        Generates a lab specification, estimated time, runtime environment, and
+        optional code/config artifact files for learners.
+        
+        The backend unwraps the `lab` key from the response and saves it to `course.lab`.
+        Each item in `artifacts` is written to disk and the Artifact DB table.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabGenerateRequest'
+            example:
+              course:
+                id: "7966d004-3f17-4959-887e-13bc74d71e86"
+                title: "Event-Driven Microservices"
+                topics: "Kafka\nCQRS"
+                objectives: "Implement Kafka consumer idempotency"
+              lab_input:
+                scenario: "Implement Idempotent Consumer in Node.js"
+                environment: "Node.js 20 / Docker"
+                assets: "Kafka starter container"
+      responses:
+        '200':
+          description: Lab metadata and optional code artifacts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabGenerateResponse'
+              example:
+                lab:
+                  raw: "# Kafka Idempotency Lab\n\n## Milestone Tasks\n1. Launch containers\n2. Implement consumer\n3. Run tests"
+                  environment: "Node.js 20 / Redis / Kafka"
+                  estimated_time: 45
+                  artifacts:
+                    - name: "consumer.js"
+                      label: "Starter Consumer Implementation"
+                      type: "lab-starter"
+                      mime_type: "text/javascript"
+                      content: "const { Kafka } = require('kafkajs');\n// TODO: Add deduplication\n"
+                    - name: "test_consumer.js"
+                      label: "Automated Verification Test Suite"
+                      type: "lab-test"
+                      mime_type: "text/javascript"
+                      content: "const assert = require('assert');\n"
+
+  /generate-guide/plan:
+    post:
+      summary: Lab Guide Agent — Generate Guide Plan
+      description: |
+        Generates a structured outline/plan for the lab guide before the full guide is generated.
+        
+        The backend calls `{AGENT_LAB_GUIDE_URL}/plan` for this stage.
+        Response is saved to `course.guide_plan` in the DB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuidePlanRequest'
+            example:
+              course:
+                title: "Event-Driven Microservices"
+                level: "Intermediate"
+              lab:
+                environment: "Node.js 20 / Docker"
+                estimated_time: 45
+              stage: "plan"
+      responses:
+        '200':
+          description: Structured lab guide plan with chapters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuidePlanResponse'
+              example:
+                plan:
+                  title: "Event-Driven Microservices - Lab Guide Plan"
+                  estimated_time: 45
+                  target_audience: "Intermediate"
+                  sections:
+                    - "Overview"
+                    - "Setup"
+                    - "Walkthrough"
+                    - "Verification"
+                  chapters:
+                    - title: "1. Overview & Objectives"
+                      desc: "System architecture, Kafka topic topologies, and prerequisite credentials."
+                    - title: "2. Environment Setup"
+                      desc: "Bootstrapping Docker containers."
+                  raw: "# Lab Guide Plan\n\nThis plan outlines the structure..."
+
+  /generate-guide:
+    post:
+      summary: Lab Guide Agent — Generate Full Learner Guide
+      description: |
+        Generates the full, structured, tabbed documentation for the learner.
+        
+        The backend calls `AGENT_LAB_GUIDE_URL` (bare root) for this stage — no suffix.
+        Response is saved to `course.guide` in the DB and a `guide.json` artifact is written to disk.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuideGenerateRequest'
+            example:
+              course:
+                title: "Event-Driven Microservices"
+                level: "Intermediate"
+              lab:
+                environment: "Node.js 20 / Redis / Kafka"
+                estimated_time: 45
+                artifacts:
+                  - name: "consumer.js"
+                    content: "..."
+      responses:
+        '200':
+          description: Full structured guide with pages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideGenerateResponse'
+
+components:
+  schemas:
+    CourseBrief:
+      type: object
+      description: Full course brief passed from the backend
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "7966d004-3f17-4959-887e-13bc74d71e86"
+        title:
+          type: string
+          example: "Event-Driven Microservices with Kafka"
+        description:
+          type: string
+        topics:
+          type: string
+          description: Newline-separated list of topics
+        objectives:
+          type: string
+          description: Newline-separated learning objectives
+        level:
+          type: string
+          enum: [Beginner, Intermediate, Advanced]
+        duration:
+          type: string
+          example: "45 min"
+        language:
+          type: string
+        category:
+          type: string
+        persona:
+          type: string
+        prerequisites:
+          type: string
+        status:
+          type: string
+
+    SlideItem:
+      type: object
+      required: [id, title, kicker, heading, body, notes]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          example: "1. Core Concept"
+        kicker:
+          type: string
+          description: Section category tag (e.g. FOUNDATION, ARCHITECTURE)
+          example: "FOUNDATION"
+        heading:
+          type: string
+        body:
+          type: string
+          description: Bullet-point body text. Use • prefix for each bullet.
+        notes:
+          type: string
+          description: Presenter notes
+
+    PPTPlanRequest:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/CourseBrief'
+      description: Sent when course.ppt_plan is NOT yet generated
+
+    PPTXGenerateRequest:
+      type: object
+      properties:
+        course:
+          allOf:
+            - $ref: '#/components/schemas/CourseBrief'
+            - type: object
+              properties:
+                ppt_plan:
+                  type: object
+                  description: The previously approved plan — presence indicates PPTX generation mode
+                  properties:
+                    summary:
+                      type: string
+                    sections:
+                      type: integer
+                    slides:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/SlideItem'
+      description: Sent when course.ppt_plan IS present (instructor approved)
+
+    PPTPlanResponse:
+      type: object
+      required: [summary, sections, duration, raw, slides]
+      properties:
+        summary:
+          type: string
+        sections:
+          type: integer
+        duration:
+          type: string
+        raw:
+          type: string
+          description: Markdown outline displayed in the plan review panel
+        slides:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlideItem'
+
+    LabArtifact:
+      type: object
+      required: [name, label, type, mime_type, content]
+      properties:
+        name:
+          type: string
+          description: Exact filename with extension
+          example: "consumer.js"
+        label:
+          type: string
+          description: UI-friendly display name
+        type:
+          type: string
+          enum: [lab-starter, lab-test, lab-config]
+        mime_type:
+          type: string
+          example: "text/javascript"
+        content:
+          type: string
+          description: Raw string file content
+
+    LabGenerateRequest:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/CourseBrief'
+        lab_input:
+          type: object
+          description: Optional extra context for lab generation
+          properties:
+            scenario:
+              type: string
+            environment:
+              type: string
+            assets:
+              type: string
+
+    LabGenerateResponse:
+      type: object
+      required: [lab]
+      properties:
+        lab:
+          type: object
+          required: [raw, environment, estimated_time]
+          properties:
+            raw:
+              type: string
+              description: Markdown lab instructions
+            environment:
+              type: string
+              description: Tech stack shown in UI metadata bar
+            estimated_time:
+              type: integer
+              description: Expected duration in minutes
+            artifacts:
+              type: array
+              description: Optional code/config files — each is saved to disk and DB
+              items:
+                $ref: '#/components/schemas/LabArtifact'
+
+    GuidePlanRequest:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/CourseBrief'
+        lab:
+          type: object
+          description: Lab data from the Lab Agent response
+          properties:
+            raw:
+              type: string
+            environment:
+              type: string
+            estimated_time:
+              type: integer
+            artifacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/LabArtifact'
+        stage:
+          type: string
+          example: "plan"
+
+    ChapterItem:
+      type: object
+      required: [title, desc]
+      properties:
+        title:
+          type: string
+        desc:
+          type: string
+
+    GuidePlanResponse:
+      type: object
+      required: [plan]
+      properties:
+        plan:
+          type: object
+          required: [title, estimated_time, target_audience, sections, chapters, raw]
+          properties:
+            title:
+              type: string
+            estimated_time:
+              type: integer
+            target_audience:
+              type: string
+            sections:
+              type: array
+              items:
+                type: string
+            chapters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChapterItem'
+            raw:
+              type: string
+              description: Full markdown plan text
+
+    GuideGenerateRequest:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/CourseBrief'
+        lab:
+          type: object
+          properties:
+            environment:
+              type: string
+            estimated_time:
+              type: integer
+            artifacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/LabArtifact'
+
+    GuidePage:
+      type: object
+      required: [id, label, kicker, title, lede, content]
+      properties:
+        id:
+          type: string
+          description: URL-safe tab slug
+          example: "overview"
+        label:
+          type: string
+          description: Tab label in the UI
+          example: "Overview"
+        kicker:
+          type: string
+          description: Small label above the page title
+          example: "GETTING STARTED"
+        title:
+          type: string
+          description: Page heading
+        lede:
+          type: string
+          description: Short introductory paragraph
+        content:
+          type: string
+          description: Full markdown page content (supports code blocks, headers, lists)
+
+    GuideGenerateResponse:
+      type: object
+      required: [guide]
+      properties:
+        guide:
+          type: object
+          required: [title, outcomes, pages]
+          properties:
+            title:
+              type: string
+            outcomes:
+              type: array
+              items:
+                type: string
+            pages:
+              type: array
+              items:
+                $ref: '#/components/schemas/GuidePage'

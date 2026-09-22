@@ -13,10 +13,11 @@ from config import ARTIFACTS_DIR
 from models.course import Course
 from auth.security import require_permission
 from services.job_service import (
-    job_generate_plan,
+    job_generate_ppt_plan,
     job_generate_ppt,
     job_regenerate_slides,
     job_generate_lab,
+    job_generate_guide_plan,
     job_generate_guide,
 )
 
@@ -129,16 +130,16 @@ def plan_generate(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
-    if course.status not in {"SELECT_COURSE", "FAILED", "WAITING_FOR_APPROVAL", "PLAN_REVIEW"}:
-        if not course.can_transition_to("PLAN_GENERATING"):
+    if course.status not in {"SELECT_COURSE", "FAILED", "WAITING_FOR_APPROVAL", "PPT_PLAN_REVIEW"}:
+        if not course.can_transition_to("PPT_PLAN_GENERATING"):
             return err(f"Cannot generate plan from status {course.status}.", "invalid_transition", 409)
     try:
-        course.transition_to("PLAN_GENERATING", failed_screen=1)
+        course.transition_to("PPT_PLAN_GENERATING", failed_screen=1)
     except ValueError as exc:
         return err(str(exc), "invalid_transition", 409)
     course.stage = "Generating course plan"
     db.session.commit()
-    job_generate_plan.delay(course.id)
+    job_generate_ppt_plan.delay(course.id)
     return ok(course.to_dict())
 
 
@@ -154,8 +155,8 @@ def plan_approve(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
-    if course.status not in {"WAITING_FOR_APPROVAL", "PLAN_REVIEW"}:
-        return err(f"Plan can only be approved from WAITING_FOR_APPROVAL/PLAN_REVIEW (got {course.status}).", "invalid_transition", 409)
+    if course.status not in {"WAITING_FOR_APPROVAL", "PPT_PLAN_REVIEW"}:
+        return err(f"Plan can only be approved from WAITING_FOR_APPROVAL/PPT_PLAN_REVIEW (got {course.status}).", "invalid_transition", 409)
     try:
         course.transition_to("PPT_GENERATING", failed_screen=1)
     except ValueError as exc:
@@ -188,16 +189,12 @@ def ppt_regenerate(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
-    if course.status in {"PPT_READY", "FAILED", "REGENERATE"}:
-        course.status = "PPT_GENERATING"
-        course.failed_screen = 1
-        course.error = None
-        course.updated_at = utcnow()
-    else:
-        try:
-            course.transition_to("PPT_GENERATING", failed_screen=1)
-        except ValueError as exc:
-            return err(str(exc), "invalid_transition", 409)
+    if course.status not in {"PPT_READY", "FAILED", "REGENERATE"}:
+        return err(f"Cannot regenerate PPT from status {course.status}.", "invalid_transition", 409)
+    course.status = "PPT_GENERATING"
+    course.failed_screen = 1
+    course.error = None
+    course.updated_at = utcnow()
     course.stage = "Regenerating presentation"
     db.session.commit()
     job_generate_ppt.delay(course.id)
@@ -210,6 +207,8 @@ def ppt_slides_regenerate(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
+    if course.status not in {"PPT_READY", "FAILED", "REGENERATE"}:
+        return err(f"Cannot regenerate PPT from status {course.status}.", "invalid_transition", 409)
     body = request.get_json(silent=True) or {}
     course.status = "PPT_GENERATING"
     course.failed_screen = 1
@@ -249,6 +248,8 @@ def lab_regenerate(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
+    if course.status not in {"LAB_REVIEW", "FAILED"}:
+        return err(f"Cannot regenerate lab from status {course.status}.", "invalid_transition", 409)
     course.status = "LAB_GENERATING"
     course.failed_screen = 2
     course.error = None
@@ -265,16 +266,18 @@ def lab_approve(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
-    if course.status != "LAB_REVIEW":
+    if course.status not in {"LAB_REVIEW", "LAB_PLAN_REVIEW"}:
         return err(f"Lab can only be approved from LAB_REVIEW (got {course.status}).", "invalid_transition", 409)
-    course.status = "LAB_GUIDE_GENERATING"
-    course.failed_screen = 3
+    course.status = "LAB_APPROVED"
+    course.failed_screen = 2
     course.error = None
-    course.stage = "Generating lab guide"
-    course.updated_at = utcnow()
+    course.stage = "Lab approved, ready for guide generation"
+    if course.lab:
+        from services.artifact_service import write_lab_artifacts
+        write_lab_artifacts(course)
     db.session.commit()
-    job_generate_guide.delay(course.id)
     return ok(course.to_dict())
+
 
 
 @courses_bp.post("/<course_id>/lab-guide/generate")
@@ -283,10 +286,48 @@ def lab_guide_generate(course_id: str):
     course = get_course(course_id)
     if not course:
         return err("Course not found.", "not_found", 404)
+    course.status = "LAB_GUIDE_PLAN_GENERATING"
+    course.failed_screen = 3
+    course.error = None
+    course.stage = "Generating lab guide plan"
+    course.updated_at = utcnow()
+    db.session.commit()
+    job_generate_guide_plan.delay(course.id)
+    return ok(course.to_dict())
+
+
+@courses_bp.post("/<course_id>/lab-guide/plan/regenerate")
+@require_permission("guide:regenerate")
+def lab_guide_plan_regenerate(course_id: str):
+    return lab_guide_generate(course_id)
+
+
+@courses_bp.post("/<course_id>/lab-guide/plan/approve")
+@require_permission("guide:generate")
+def lab_guide_plan_approve(course_id: str):
+    course = get_course(course_id)
+    if not course:
+        return err("Course not found.", "not_found", 404)
     course.status = "LAB_GUIDE_GENERATING"
     course.failed_screen = 3
     course.error = None
-    course.stage = "Generating lab guide"
+    course.stage = "Generating full lab guide"
+    course.updated_at = utcnow()
+    db.session.commit()
+    job_generate_guide.delay(course.id)
+    return ok(course.to_dict())
+
+
+@courses_bp.post("/<course_id>/lab-guide/regenerate")
+@require_permission("guide:regenerate")
+def lab_guide_regenerate(course_id: str):
+    course = get_course(course_id)
+    if not course:
+        return err("Course not found.", "not_found", 404)
+    course.status = "LAB_GUIDE_GENERATING"
+    course.failed_screen = 3
+    course.error = None
+    course.stage = "Regenerating full lab guide"
     course.updated_at = utcnow()
     db.session.commit()
     job_generate_guide.delay(course.id)

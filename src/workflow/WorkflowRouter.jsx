@@ -13,5 +13,3 @@ export default function WorkflowRouter({ course, screens, step = null }) {
   const screen = resolveWorkflowScreen(course?.status)
   return screens[screen] ?? screens[SCREEN.COURSE_BRIEF] ?? null
 }
-
-export { SCREEN, resolveWorkflowScreen }

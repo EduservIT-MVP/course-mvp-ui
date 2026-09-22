@@ -11,16 +11,7 @@ export default function PptGeneratingScreen({ course }) {
 
   return (
     <section className="brief">
-      <StatusBanner tone="busy" title="Generating presentation…" message={detail} />
-      <div className="generating-panel" aria-busy="true">
-        <span className="pptx-spinner" aria-hidden="true" />
-        <div>
-          <h3>Rendering slide previews</h3>
-          <p className="hint">
-            The presentation screen opens only after the .pptx and per-slide images are ready.
-          </p>
-        </div>
-      </div>
+      <StatusBanner tone="busy" title="Generating presentation…" message={detail + " Estimated time: 45-60 seconds."} />
     </section>
   )
 }

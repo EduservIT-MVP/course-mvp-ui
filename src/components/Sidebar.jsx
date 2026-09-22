@@ -65,11 +65,13 @@ export default function Sidebar({ step = 0, maxStep = 0, onSelect, course, mode 
             const done = index < step
             const active = index === step
             const Icon = STEP_ICONS[index] || FileText
+            
             return (
               <button
                 key={item.id}
                 type="button"
                 className={`step${active ? " is-active" : ""}`}
+                disabled={index > maxStep}
                 onClick={() => onSelect(index)}
               >
                 <span className={`step-marker${active ? " is-active" : ""}${done ? " is-done" : ""}`}>

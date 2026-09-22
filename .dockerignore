@@ -1,16 +1,30 @@
+# Node runtime artifacts
 node_modules/
 dist/
 dist-ssr/
+*.log
+
+# Git & IDE
 .git/
 .gitignore
-.env
-.env.*
-!.env.example
-!.env.docker.example
-backend/
-*.log
 .DS_Store
 .vscode/
 .idea/
 .oxlintrc.json
+
+# Secrets (do NOT bake into image)
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Backend source is built in its own container context (./backend)
+backend/
+
+# Dev/scratch scripts
+test.js
+test_*.js
+test_*.mjs
+test_*.cjs
+update_course_overview.py
 scripts/

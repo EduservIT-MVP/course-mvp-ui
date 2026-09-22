@@ -47,19 +47,20 @@ from agents import (
     agent_build_pptx,
     agent_generate_lab,
     agent_generate_guide,
-    agent_generate_plan,
+    agent_generate_ppt_plan,
     agent_regenerate_slides,
 )
 
-def celery_init_app(app: Flask) -> Celery:
-    class FlaskTask(Task):
-        def __call__(self, *args: object, **kwargs: object) -> object:
-            with app.app_context():
-                return self.run(*args, **kwargs)
+class FlaskTask(Task):
+    def __call__(self, *args: object, **kwargs: object) -> object:
+        with self.app.flask_app.app_context():
+            return self.run(*args, **kwargs)
 
+def celery_init_app(app: Flask) -> Celery:
     celery_app = Celery(app.name, task_cls=FlaskTask)
     celery_app.config_from_object(app.config["CELERY"])
     celery_app.set_default()
+    celery_app.flask_app = app
     app.extensions["celery"] = celery_app
     return celery_app
 
@@ -77,11 +78,13 @@ def create_app() -> Flask:
 
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    
+
+    import os
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     app.config.from_mapping(
         CELERY=dict(
-            broker_url="redis://localhost:6379/0",
-            result_backend="redis://localhost:6379/0",
+            broker_url=redis_url,
+            result_backend=redis_url,
             task_ignore_result=True,
         ),
     )

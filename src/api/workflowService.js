@@ -16,7 +16,7 @@ export const workflowService = {
     const approved = normalizeCourse(
       await request(`/courses/${courseId}/plan/approve`, { method: "POST", body: {} }),
     )
-    if (approved.status === WORKFLOW.WAITING_FOR_APPROVAL || approved.status === WORKFLOW.PLAN_REVIEW) {
+    if (approved.status === WORKFLOW.WAITING_FOR_APPROVAL || approved.status === WORKFLOW.PPT_PLAN_REVIEW) {
       return pptService.generate(courseId)
     }
     return approved

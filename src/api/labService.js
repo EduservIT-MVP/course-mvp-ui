@@ -17,4 +17,16 @@ export const labService = {
   async generateGuide(courseId) {
     return normalizeCourse(await request(`/courses/${courseId}/lab-guide/generate`, { method: "POST", body: {} }))
   },
+
+  async approveGuidePlan(courseId) {
+    return normalizeCourse(await request(`/courses/${courseId}/lab-guide/plan/approve`, { method: "POST", body: {} }))
+  },
+
+  async regenerateGuidePlan(courseId) {
+    return normalizeCourse(await request(`/courses/${courseId}/lab-guide/plan/regenerate`, { method: "POST", body: {} }))
+  },
+
+  async regenerateGuide(courseId) {
+    return normalizeCourse(await request(`/courses/${courseId}/lab-guide/regenerate`, { method: "POST", body: {} }))
+  },
 }

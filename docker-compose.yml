@@ -1,7 +1,23 @@
 services:
+  # ── Message Broker ─────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: courseforge-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - courseforge-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # ── Standalone Mock Agent Microservices ──────────────────────────────────────
-  # Emulates the 3 separate external agent servers on ports 8001, 8002, and 8003.
-  # Replace or disable when connecting to your real standalone agent servers.
+  # Emulates the 3 separate external agent servers (PPT, Lab, Lab Guide).
+  # !! To use real AI agents: set AGENT_PPTX_URL, AGENT_LAB_URL, AGENT_LAB_GUIDE_URL
+  # in your .env file to point to your real agent servers and remove this service.
   mock-agents:
     build:
       context: ./backend
@@ -22,27 +38,68 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: courseforge-backend
-    command: python app.py
+    # CMD defaults to gunicorn app:app (defined in backend/Dockerfile)
     ports:
       - "8080:8080"
     environment:
+      - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
       - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret-change-me}
       - DATABASE_URL=sqlite:////app/data/courseforge.db
+      - REDIS_URL=redis://redis:6379/0
       - ARTIFACTS_DIR=/app/data/artifacts
       - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:80,http://localhost
-      # Internal Docker URLs pointing to the mock-agents service
+      # Agent endpoints — defaults to mock-agents; override in .env to point to real agents
       - AGENT_PPTX_URL=${AGENT_PPTX_URL:-http://mock-agents:8001/build-pptx}
       - AGENT_LAB_URL=${AGENT_LAB_URL:-http://mock-agents:8002/generate-lab}
       - AGENT_LAB_GUIDE_URL=${AGENT_LAB_GUIDE_URL:-http://mock-agents:8003/generate-guide}
-      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-30}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-120}
       - REQUIRE_AGENT_ENDPOINTS=${REQUIRE_AGENT_ENDPOINTS:-false}
     volumes:
       - courseforge_data:/app/data
     depends_on:
-      - mock-agents
+      redis:
+        condition: service_healthy
+      mock-agents:
+        condition: service_started
+    networks:
+      - courseforge-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ── Celery Background Worker ───────────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: courseforge-worker
+    command: celery -A app.celery worker --pool=threads --loglevel=info --concurrency=4
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret-change-me}
+      - DATABASE_URL=sqlite:////app/data/courseforge.db
+      - REDIS_URL=redis://redis:6379/0
+      - ARTIFACTS_DIR=/app/data/artifacts
+      # Agent endpoints — defaults to mock-agents; override in .env to point to real agents
+      - AGENT_PPTX_URL=${AGENT_PPTX_URL:-http://mock-agents:8001/build-pptx}
+      - AGENT_LAB_URL=${AGENT_LAB_URL:-http://mock-agents:8002/generate-lab}
+      - AGENT_LAB_GUIDE_URL=${AGENT_LAB_GUIDE_URL:-http://mock-agents:8003/generate-guide}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-120}
+    volumes:
+      - courseforge_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      mock-agents:
+        condition: service_started
     networks:
       - courseforge-net
     restart: unless-stopped
@@ -53,12 +110,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:8080
+        # When accessed through the browser, API calls go to the backend port directly
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8080}
     container_name: courseforge-frontend
     ports:
       - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - courseforge-net
     restart: unless-stopped

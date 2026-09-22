@@ -78,7 +78,7 @@ def delete_category(category_id):
     if not user.has_permission("course:delete"):
         return jsonify({"error": "Unauthorized"}), 403
 
-    category = Category.query.get(category_id)
+    category = db.session.get(Category, category_id)
     if not category:
         return jsonify({"error": "Category not found"}), 404
 

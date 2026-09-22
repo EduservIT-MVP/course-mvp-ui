@@ -10,22 +10,29 @@ from extensions import db, utcnow
 from config import ARTIFACTS_DIR
 
 ALLOWED_TRANSITIONS = {
-    "SELECT_COURSE": {"PLAN_GENERATING", "FAILED"},
-    "PLAN_GENERATING": {"WAITING_FOR_APPROVAL", "PLAN_REVIEW", "FAILED"},
-    "PLAN_REVIEW": {"PLAN_GENERATING", "WAITING_FOR_APPROVAL", "PPT_GENERATING", "FAILED"},
-    "WAITING_FOR_APPROVAL": {"PLAN_GENERATING", "PPT_GENERATING", "FAILED"},
+    "SELECT_COURSE": {"PPT_PLAN_GENERATING", "FAILED"},
+    "PPT_PLAN_GENERATING": {"WAITING_FOR_APPROVAL", "PPT_PLAN_REVIEW", "FAILED"},
+    "PPT_PLAN_REVIEW": {"PPT_PLAN_GENERATING", "WAITING_FOR_APPROVAL", "PPT_GENERATING", "FAILED"},
+    "WAITING_FOR_APPROVAL": {"PPT_PLAN_GENERATING", "PPT_GENERATING", "FAILED"},
     "PPT_GENERATING": {"PPT_READY", "FAILED"},
-    "PPT_READY": {"PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "REGENERATE", "FAILED"},
-    "LAB_GENERATING": {"LAB_REVIEW", "FAILED"},
-    "LAB_REVIEW": {"PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "LAB_GUIDE_GENERATING", "REGENERATE", "FAILED"},
+    "PPT_READY": {"PPT_PLAN_GENERATING", "PPT_GENERATING", "LAB_PLAN_GENERATING", "REGENERATE", "FAILED"},
+    "LAB_PLAN_GENERATING": {"LAB_PLAN_REVIEW", "FAILED"},
+    "LAB_PLAN_REVIEW": {"LAB_PLAN_GENERATING", "LAB_GENERATING", "LAB_APPROVED", "REGENERATE", "FAILED"},
+    "LAB_GENERATING": {"LAB_REVIEW", "LAB_APPROVED", "FAILED"},
+    "LAB_REVIEW": {"LAB_PLAN_GENERATING", "LAB_GENERATING", "LAB_APPROVED", "LAB_GUIDE_PLAN_GENERATING", "REGENERATE", "FAILED"},
+    "LAB_APPROVED": {"LAB_PLAN_GENERATING", "LAB_GENERATING", "LAB_GUIDE_PLAN_GENERATING", "LAB_GUIDE_GENERATING", "REGENERATE", "FAILED"},
+    "LAB_GUIDE_PLAN_GENERATING": {"LAB_GUIDE_PLAN_REVIEW", "FAILED"},
+    "LAB_GUIDE_PLAN_REVIEW": {"LAB_GUIDE_PLAN_GENERATING", "LAB_GUIDE_GENERATING", "REGENERATE", "FAILED"},
     "LAB_GUIDE_GENERATING": {"COMPLETE", "FAILED"},
-    "COMPLETE": {"PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "REGENERATE", "FAILED"},
-    "REGENERATE": {"PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "PPT_READY", "FAILED"},
+    "COMPLETE": {"PPT_PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "REGENERATE", "FAILED"},
+    "REGENERATE": {"PPT_PLAN_GENERATING", "PPT_GENERATING", "LAB_GENERATING", "PPT_READY", "FAILED"},
     "FAILED": {
         "SELECT_COURSE",
-        "PLAN_GENERATING",
+        "PPT_PLAN_GENERATING",
         "PPT_GENERATING",
+        "LAB_PLAN_GENERATING",
         "LAB_GENERATING",
+        "LAB_GUIDE_PLAN_GENERATING",
         "LAB_GUIDE_GENERATING",
     },
 }
@@ -60,7 +67,9 @@ class Course(db.Model):
     objectives = db.Column(db.Text, nullable=False, default="")
     topics = db.Column(db.Text, nullable=False, default="")
     category = db.Column(db.String(50), nullable=True, default="Uncategorized")
-    plan = db.Column(JSON, nullable=True)
+    ppt_plan = db.Column(JSON, nullable=True)
+    lab_plan = db.Column(JSON, nullable=True)
+    guide_plan = db.Column(JSON, nullable=True)
     lab = db.Column(JSON, nullable=True)
     guide = db.Column(JSON, nullable=True)
     error = db.Column(db.Text, nullable=True)
@@ -78,6 +87,14 @@ class Course(db.Model):
         lazy="joined",
         order_by="Artifact.created_at",
     )
+
+    @property
+    def plan(self):
+        return self.ppt_plan
+
+    @plan.setter
+    def plan(self, value):
+        self.ppt_plan = value
 
     def can_transition_to(self, new_status: str) -> bool:
         if new_status == self.status:
@@ -125,7 +142,9 @@ class Course(db.Model):
                 {"label": "Level", "value": self.level or "Not specified"},
                 {"label": "Duration", "value": self.duration or "Not specified"},
             ],
-            "plan": self.plan,
+            "pptPlan": self.ppt_plan,
+            "labPlan": self.lab_plan,
+            "guidePlan": self.guide_plan,
             "lab": self.lab or {"scenario": "", "environment": "Browser workspace", "assets": ""},
             "guide": self.guide,
             "ppt": ppt,

@@ -18,6 +18,7 @@ const ROLE_PERMISSIONS = {
     "lab:approve",
     "lab:regenerate",
     "guide:generate",
+    "guide:regenerate",
     "artifacts:download",
   ],
   reviewer: [
@@ -29,6 +30,8 @@ const ROLE_PERMISSIONS = {
     "ppt:download",
     "lab:approve",
     "lab:regenerate",
+    "guide:generate",
+    "guide:regenerate",
     "artifacts:download",
   ],
   learner: ["course:list", "course:view", "ppt:download", "artifacts:download"],

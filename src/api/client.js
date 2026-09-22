@@ -42,6 +42,7 @@ export async function request(path, { method = "GET", body, headers, signal } = 
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-cache",
     })
   } catch {
     throw new ApiError("Cannot reach the backend. Check VITE_API_BASE_URL and that the API is running.", {

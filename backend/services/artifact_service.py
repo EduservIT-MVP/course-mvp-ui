@@ -36,8 +36,12 @@ def _size_label(path: Path) -> str:
 
 
 def _upsert_artifact(course, *, type_: str, name: str, label: str, mime_type: str, relative_path: str, source_agent: str = None) -> Artifact:
-    existing = next((a for a in (course.artifacts or []) if a.type == type_), None)
+    existing = next(
+        (a for a in (course.artifacts or []) if a.name == name or (a.type == type_ and a.type in {"ppt", "lab-guide"})),
+        None,
+    )
     abs_path = ARTIFACTS_DIR / relative_path
+
     size = _size_label(abs_path)
     if existing:
         existing.name = name
@@ -85,7 +89,7 @@ def write_ppt_artifact(course, content: bytes | None = None) -> Artifact:
         file_path.write_bytes(content)
     else:
         file_path.write_text(
-            json.dumps({"format": "stub-pptx", "title": course.title, "plan": course.plan}, indent=2),
+            json.dumps({"format": "stub-pptx", "title": course.title, "plan": getattr(course, "ppt_plan", None)}, indent=2),
             encoding="utf-8",
         )
     return _upsert_artifact(
@@ -232,15 +236,90 @@ def write_ppt_slide_images(course, pptx_path: Path | None = None) -> list[dict]:
     return list_slide_images(course.id)
 
 
+def write_lab_artifacts(course) -> list[Artifact]:
+    """
+    Persist all lab artifacts returned by the lab agent (mock or real external).
+    Supports:
+    1. course.lab['artifacts'] = [{ name, label, content, type, mime_type }]
+    2. course.lab['files'] = [{ path/name, content }]
+    3. course.lab['code']['files']
+    4. fallback starter template
+    """
+    lab_data = course.lab or {}
+    artifacts_created = []
+    course_dir = ARTIFACTS_DIR / course.id
+    course_dir.mkdir(parents=True, exist_ok=True)
+    slug = _slug(course.title)
+
+    agent_artifacts = lab_data.get("artifacts")
+    if isinstance(agent_artifacts, list) and agent_artifacts:
+        for item in agent_artifacts:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or f"{slug}-artifact.js"
+            label = item.get("label") or name
+            type_ = item.get("type") or "lab-code"
+            mime_type = item.get("mime_type") or "text/javascript"
+            content = item.get("content") or ""
+
+            file_path = course_dir / name
+            if isinstance(content, bytes):
+                file_path.write_bytes(content)
+            else:
+                file_path.write_text(str(content), encoding="utf-8")
+
+            art = _upsert_artifact(
+                course,
+                type_=type_,
+                name=name,
+                label=label,
+                mime_type=mime_type,
+                relative_path=f"{course.id}/{name}",
+                source_agent="lab_agent",
+            )
+            artifacts_created.append(art)
+        return artifacts_created
+
+    # Check files list
+    files = lab_data.get("files") or (lab_data.get("code") or {}).get("files")
+    if isinstance(files, list) and files:
+        for f in files:
+            if isinstance(f, dict):
+                fname = Path(f.get("path") or f.get("name") or "app.js").name
+                fcontent = f.get("content", "")
+                fpath = course_dir / fname
+                fpath.write_text(str(fcontent), encoding="utf-8")
+                art = _upsert_artifact(
+                    course,
+                    type_="lab-code",
+                    name=fname,
+                    label=f.get("label") or f"Lab {fname}",
+                    mime_type=f.get("mime_type") or "text/javascript",
+                    relative_path=f"{course.id}/{fname}",
+                    source_agent="lab_agent",
+                )
+                artifacts_created.append(art)
+        return artifacts_created
+
+    # Fallback default lab artifact
+    name = f"{slug}-lab.js"
+    content = f"// Hands-on Lab for {course.title}\n// Runtime: {lab_data.get('environment', 'Standard')}\n\nconsole.log('Lab initialized successfully');\n"
+    (course_dir / name).write_text(content, encoding="utf-8")
+    art = _upsert_artifact(
+        course,
+        type_="lab-code",
+        name=name,
+        label="Starter Implementation",
+        mime_type="text/javascript",
+        relative_path=f"{course.id}/{name}",
+        source_agent="lab_agent",
+    )
+    return [art]
+
+
 def write_lab_artifact(course) -> Artifact:
-    name = f"{_slug(course.title)}-lab.js"
-    rel = f"{course.id}/{name}"
-    path = ARTIFACTS_DIR / course.id
-    path.mkdir(parents=True, exist_ok=True)
-    files = ((course.lab or {}).get("code") or {}).get("files") or []
-    content = "\n".join(f"// {f.get('path')}\n{f.get('content', '')}" for f in files) or f"// Lab for {course.title}\n"
-    (path / name).write_text(content, encoding="utf-8")
-    return _upsert_artifact(course, type_="lab-code", name=name, label="Lab code", mime_type="text/javascript", relative_path=rel, source_agent="lab_generation")
+    arts = write_lab_artifacts(course)
+    return arts[0] if arts else None
 
 
 def write_guide_artifact(course) -> Artifact:
@@ -250,3 +329,4 @@ def write_guide_artifact(course) -> Artifact:
     path.mkdir(parents=True, exist_ok=True)
     (path / name).write_text(json.dumps(course.guide or {}, indent=2), encoding="utf-8")
     return _upsert_artifact(course, type_="lab-guide", name=name, label="Lab guide", mime_type="application/json", relative_path=rel, source_agent="lab_guide")
+

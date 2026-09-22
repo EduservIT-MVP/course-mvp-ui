@@ -32,101 +32,24 @@ def get_mock_pptx_bytes() -> bytes:
 
 
 def get_mock_lab_data(course_title: str = "Modern Architecture") -> dict:
-    """Return hardcoded realistic lab exercise structure with README plan."""
+    """Return realistic lab exercise structure with dynamic course title."""
     sample_readme = (
-        "# CIBA Grant Flow Lab\n\n"
-        "**Summary:** This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, "
-        "where a client requests authorization from a user through an out-of-band method.\n\n"
-        "**Trainee persona / decision:** Helpdesk Agent\n\n"
+        f"# {course_title} Lab\n\n"
+        f"**Summary:** This lab provides a hands-on exercise for {course_title}.\n\n"
+        "**Trainee persona / decision:** Learner\n\n"
         "## Steps\n"
-        "1. Start an action on the index page to initiate a CIBA grant flow\n"
-        "2. The action calls the client module, which simulates an async approval flow\n"
-        "3. The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'\n"
-        "4. The trainee can simulate the request being approved or denied through dev-only endpoints\n"
-        "5. The trainee is redirected to a success or denied page, depending on the outcome\n\n"
-        "## Wrong-choice path\n"
-        "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
-        "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication.\n\n"
-        "## Simulated systems (no real network calls, no real credentials)\n"
-        "Async Approval Service\n"
-        "CIBA Authenticator\n\n"
-        "## Expected packages\n"
-        "Flask\n"
-        "Pytest\n"
-        "Mockk\n"
+        "1. Start the workspace environment\n"
+        "2. Implement the core concepts\n"
+        "3. Validate against the success criteria\n"
     )
 
+    import random
+    reg_id = random.randint(1000, 9999)
     return {
         "lab": {
-            "scenario": f"CIBA Grant Flow Lab ({course_title})",
-            "environment": "Docker, Python 3.11, Flask, Pytest, Mockk",
-            "assets": "Lab repository starter files, CIBA emulator, evaluation rubric",
-            "readme": sample_readme,
-            "persona": "Helpdesk Agent",
-            "summary": "This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, where a client requests authorization from a user through an out-of-band method.",
-            "wrongChoicePath": (
-                "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
-                "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication."
-            ),
-            "simulatedSystems": [
-                "Async Approval Service",
-                "CIBA Authenticator",
-            ],
-            "expectedPackages": [
-                "Flask",
-                "Pytest",
-                "Mockk",
-            ],
-            "steps": [
-                "Start an action on the index page to initiate a CIBA grant flow",
-                "The action calls the client module, which simulates an async approval flow",
-                "The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'",
-                "The trainee can simulate the request being approved or denied through dev-only endpoints",
-                "The trainee is redirected to a success or denied page, depending on the outcome",
-            ],
-            "tasks": [
-                {
-                    "n": 1,
-                    "title": "Initiate CIBA Grant Flow",
-                    "detail": "Start an action on the index page to initiate a CIBA grant flow via client module.",
-                    "time": "10 min",
-                },
-                {
-                    "n": 2,
-                    "title": "Simulate Asynchronous Approval",
-                    "detail": "Poll status endpoint while request is in flight and simulate approval/denial.",
-                    "time": "25 min",
-                },
-                {
-                    "n": 3,
-                    "title": "Verify Outcomes & Test Wrong-Choice Guard",
-                    "detail": "Verify redirection to outcome page and ensure bypass attempts trigger explanatory feedback.",
-                    "time": "15 min",
-                },
-            ],
-            "criteria": [
-                "CIBA authorization request is initiated out-of-band without direct credential prompts",
-                "Async approval polling status lifecycle executes correctly",
-                "Bypass wrong-choice path triggers instructional security error message",
-                "All test assertions pass using Pytest and Mockk",
-            ],
-            "code": {
-                "language": "python",
-                "files": [
-                    {
-                        "path": "lab/app.py",
-                        "content": (
-                            "# CIBA Grant Flow Simulation Starter\n"
-                            "from flask import Flask, jsonify, request\n\n"
-                            "app = Flask(__name__)\n\n"
-                            "@app.post('/ciba/initiate')\n"
-                            "def initiate_ciba():\n"
-                            "    return jsonify({'auth_req_id': 'ciba-req-101', 'status': 'pending', 'expires_in': 120})\n"
-                        ),
-                    }
-                ],
-            },
-            "useCase": "Implement and validate Client Initiated Backchannel Authentication (CIBA) grant flow.",
+            "raw": sample_readme + f"\n\n*(ID: {reg_id})*",
+            "estimated_time": 50,
+            "environment": "Standard Browser Workspace",
         }
     }
 
@@ -167,9 +90,11 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "content": "### Success Verification\n\nRun the automated test suite:\n```bash\nnpm run test:e2e\n```\n\n**Expected Output:**\nAll 14 integration tests should pass. If any fail, review the error logs and ensure the authentication headers are being passed correctly.",
         },
     ]
+    import random
+    reg_id = random.randint(1000, 9999)
     return {
         "guide": {
-            "title": f"{course_title} Lab Guide",
+            "title": f"{course_title} Lab Guide (ID: {reg_id})",
             "outcomes": [
                 "Understand the system architecture and runtime constraints",
                 "Complete the guided hands-on implementation steps",
@@ -222,9 +147,7 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_lab = "lab" in self.agent_type and "guide" not in self.agent_type or "generate-lab" in path
         is_guide = "guide" in self.agent_type or "generate-guide" in path
         
-        import time
-        print(f"  [Agent] Simulating long-running generation. Sleeping for 180s...", flush=True)
-        time.sleep(180)
+        # Removed intentional delay to allow fast frontend testing
 
         if is_pptx:
             pptx_bytes = get_mock_pptx_bytes()

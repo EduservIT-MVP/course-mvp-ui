@@ -67,18 +67,21 @@ export default function Workspace() {
   const [awaitingPlan, setAwaitingPlan] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [activeStep, setActiveStep] = useState(null)
+  const [activeStep, setActiveStep] = useState(0)
 
   const status = awaitingPlan
-    ? WORKFLOW.PLAN_GENERATING
+    ? WORKFLOW.PPT_PLAN_GENERATING
     : course?.status || WORKFLOW.SELECT_COURSE
   const failed = status === WORKFLOW.FAILED
   const ppt = findPptArtifact(course)
   const displayStatus = status
   const screen = resolveWorkflowScreen(displayStatus)
   const serverStep = awaitingPlan ? 1 : sidebarStepForCourse(course)
-  const step = activeStep !== null ? activeStep : serverStep
-  const maxStep = maxStepForStatus(status, Number(course?.failedScreen)) || serverStep
+  
+
+  const step = activeStep
+  const maxStep = maxStepForStatus(status, Number(course?.failedScreen))
+  const isPreview = step < maxStep
   const header = headerMetaForScreen(screen)
   const errorMessage = messageFromError(error, "")
 
@@ -96,6 +99,17 @@ export default function Workspace() {
     if (next === WORKFLOW.PPT_READY && prev && prev !== WORKFLOW.PPT_READY) {
       setSlideIndex(0)
     }
+    
+    // Auto-advance the UI step only when the backend progresses forward.
+    // Explicitly prevent auto-advancing to step 4 (Overview) so they stay on the Lab Guide to review it, 
+    // UNLESS it's the initial load of a complete course (prev === null).
+    const nextStep = next ? sidebarStepForCourse({ status: next }) : 0
+    const prevStep = prev ? sidebarStepForCourse({ status: prev }) : 0
+    if (nextStep > prevStep) {
+      if (nextStep !== 4 || prev === null) {
+        setActiveStep(nextStep)
+      }
+    }
   }, [course?.status])
 
   useEffect(() => {
@@ -107,7 +121,7 @@ export default function Workspace() {
       return
     }
     // Agent finished (or failed) — stop the optimistic "waiting" override.
-    if (course.status && course.status !== WORKFLOW.PLAN_GENERATING) {
+    if (course.status && course.status !== WORKFLOW.PPT_PLAN_GENERATING) {
       setAwaitingPlan(false)
     }
     setBrief({
@@ -191,12 +205,48 @@ export default function Workspace() {
     }
   }
 
-  async function handleGenerateGuide() {
+  async function handleApproveLab() {
     try {
       await run(async () => {
         if (can("course:update")) await courseService.update(course.id, { lab })
         return labService.approve(course.id)
       })
+      showToast("Lab approved.")
+    } catch (err) {
+      showToast(messageFromError(err, "Could not approve the lab."))
+    }
+  }
+
+  async function handleStartGuide() {
+    try {
+      setActiveStep(3)
+      await run(() => labService.generateGuide(course.id))
+    } catch (err) {
+      showToast(messageFromError(err, "Could not start lab guide generation."))
+    }
+  }
+
+  async function handleApproveGuidePlan() {
+    try {
+      await run(() => labService.approveGuidePlan(course.id))
+      showToast("Generating full lab guide…")
+    } catch (err) {
+      showToast(messageFromError(err, "Could not approve the lab guide plan."))
+    }
+  }
+
+  async function handleRegenerateGuidePlan() {
+    try {
+      await run(() => labService.regenerateGuidePlan(course.id))
+      showToast("Regenerating lab guide plan…")
+    } catch (err) {
+      showToast(messageFromError(err, "Could not regenerate the lab guide plan."))
+    }
+  }
+
+  async function handleGenerateGuide() {
+    try {
+      await run(() => labService.generateGuide(course.id))
     } catch (err) {
       showToast(messageFromError(err, "Could not generate the lab guide."))
     }
@@ -207,6 +257,14 @@ export default function Workspace() {
       await run(() => labService.regenerate(course.id))
     } catch (err) {
       showToast(messageFromError(err, "Could not regenerate the lab."))
+    }
+  }
+
+  async function handleRegenerateGuide() {
+    try {
+      await run(() => labService.regenerateGuide(course.id))
+    } catch (err) {
+      showToast(messageFromError(err, "Could not regenerate the lab guide."))
     }
   }
 
@@ -270,6 +328,7 @@ export default function Workspace() {
       error={errorMessage}
       readOnly={Boolean(course) && status !== WORKFLOW.SELECT_COURSE && status !== WORKFLOW.FAILED}
       canGenerate={
+        !isPreview &&
         can("plan:generate") &&
         (!course || status === WORKFLOW.SELECT_COURSE || status === WORKFLOW.FAILED) &&
         !awaitingPlan
@@ -286,11 +345,11 @@ export default function Workspace() {
       busy={busy}
       canApprove={
         can("plan:approve") &&
-        (status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL)
+        (status === WORKFLOW.PPT_PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL)
       }
       canRegenerate={
         can("plan:regenerate") &&
-        (Boolean(course?.plan) || status === WORKFLOW.PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL || failed)
+        (Boolean(course?.plan) || Boolean(course?.pptPlan) || status === WORKFLOW.PPT_PLAN_REVIEW || status === WORKFLOW.WAITING_FOR_APPROVAL || failed)
       }
       onApprove={handleApprovePlan}
       onRegenerate={handleRegeneratePlan}
@@ -313,44 +372,56 @@ export default function Workspace() {
       onStartLab={handleStartLab}
       busy={busy}
       downloading={downloading}
-      generating={status === WORKFLOW.PPT_GENERATING || status === WORKFLOW.PLAN_GENERATING}
+      generating={status === WORKFLOW.PPT_GENERATING || status === WORKFLOW.PPT_PLAN_GENERATING}
       failed={failed}
       error={errorMessage || course?.error}
       canApprove={false}
       canRegenerate={
-        can("ppt:regenerate") && (Boolean(ppt) || status === WORKFLOW.PPT_READY || failed)
+        !isPreview && can("ppt:regenerate") && (Boolean(ppt) || status === WORKFLOW.PPT_READY || failed)
       }
       canDownloadPpt={can("ppt:download") && Boolean(ppt)}
       canStartLab={can("lab:generate") && status === WORKFLOW.PPT_READY && Boolean(ppt)}
       ppt={ppt}
-      summary={course?.plan?.summary}
+      summary={course?.plan?.summary || course?.pptPlan?.summary}
     />
   )
 
   const labNode = (
     <LabGeneration
+      course={course}
       lab={course?.lab}
+      status={status}
       busy={busy}
-      generating={status === WORKFLOW.LAB_GENERATING}
+      generating={status === WORKFLOW.LAB_GENERATING || status === WORKFLOW.LAB_PLAN_GENERATING}
       failed={failed}
       error={errorMessage || course?.error}
+      onApproveLab={handleApproveLab}
+      onStartGuide={handleStartGuide}
+      onRegenerate={handleRegenerateLab}
+      onDownloadArtifact={handleDownload}
+      canApproveLab={!isPreview && can("lab:approve") && (status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_PLAN_REVIEW)}
+      canStartGuide={!isPreview && can("guide:generate") && (status === WORKFLOW.LAB_APPROVED || status === WORKFLOW.LAB_REVIEW)}
+      canRegenerate={!isPreview && can("lab:regenerate") && (Boolean(course?.lab) || status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_APPROVED || failed)}
     />
   )
 
   const guideNode = (
     <LabGuide
+      course={course}
       lab={course?.lab}
       guide={course?.guide}
-      onApprove={handleGenerateGuide}
-      onRegenerate={handleRegenerateLab}
-      generating={status === WORKFLOW.LAB_GUIDE_GENERATING}
+      status={status}
+      onRegenerate={status === WORKFLOW.LAB_GUIDE_PLAN_REVIEW ? handleRegenerateGuidePlan : handleRegenerateGuide}
+      generating={status === WORKFLOW.LAB_GUIDE_GENERATING || status === WORKFLOW.LAB_GUIDE_PLAN_GENERATING}
       busy={busy}
       failed={failed}
       error={errorMessage || course?.error}
-      canApprove={can("lab:approve") && status === WORKFLOW.LAB_REVIEW}
-      canRegenerate={can("lab:regenerate") && (Boolean(course?.lab) || status === WORKFLOW.LAB_REVIEW || failed)}
+      canApprove={!isPreview && can("guide:generate") && (status === WORKFLOW.LAB_GUIDE_PLAN_REVIEW || status === WORKFLOW.LAB_APPROVED)}
+      onApprove={handleApproveGuidePlan}
+      canRegenerate={!isPreview && can("guide:regenerate") && (Boolean(course?.guidePlan) || Boolean(course?.guide) || status === WORKFLOW.LAB_GUIDE_PLAN_REVIEW || status === WORKFLOW.COMPLETE || failed)}
       section={guideSection}
       onSelectSection={setGuideSection}
+      onFinish={() => setActiveStep(4)}
     />
   )
 
@@ -369,7 +440,7 @@ export default function Workspace() {
 
   // WorkflowRouter reads course.status; while awaitingPlan we pass a stub generating status.
   const routedCourse = awaitingPlan
-    ? { ...(course || {}), status: WORKFLOW.PLAN_GENERATING, title: course?.title || brief.title }
+    ? { ...(course || {}), status: WORKFLOW.PPT_PLAN_GENERATING, title: course?.title || brief.title }
     : course
 
   return (
@@ -424,24 +495,28 @@ export default function Workspace() {
               serverStep={serverStep}
               screens={{
                 0: briefNode,
-                1: status === WORKFLOW.PLAN_GENERATING 
+                1: status === WORKFLOW.PPT_PLAN_GENERATING 
                     ? planGeneratingNode 
                     : status === WORKFLOW.PPT_GENERATING 
                       ? pptGeneratingNode 
-                      : ppt 
-                        ? pptNode 
-                        : planReviewNode,
+                      : status === WORKFLOW.PPT_PLAN_REVIEW || !ppt 
+                        ? planReviewNode 
+                        : pptNode,
                 2: labNode,
                 3: guideNode,
                 4: overviewNode,
                 [SCREEN.COURSE_BRIEF]: briefNode,
-                [SCREEN.PLAN_GENERATING]: planGeneratingNode,
-                [SCREEN.PLAN_REVIEW]: planReviewNode,
+                [SCREEN.PPT_PLAN_GENERATING]: planGeneratingNode,
+                [SCREEN.PPT_PLAN_REVIEW]: planReviewNode,
                 [SCREEN.PPT_GENERATING]: pptGeneratingNode,
                 [SCREEN.PPT_READY]: pptNode,
+                [SCREEN.LAB_PLAN_GENERATING]: labNode,
+                [SCREEN.LAB_PLAN_REVIEW]: labNode,
                 [SCREEN.LAB_GENERATING]: labNode,
-                [SCREEN.LAB_REVIEW]: guideNode,
+                [SCREEN.LAB_REVIEW]: labNode,
                 [SCREEN.LAB_GUIDE_ACTION]: guideNode,
+                [SCREEN.LAB_GUIDE_PLAN_GENERATING]: guideNode,
+                [SCREEN.LAB_GUIDE_PLAN_REVIEW]: guideNode,
                 [SCREEN.LAB_GUIDE_GENERATING]: guideNode,
                 [SCREEN.COMPLETE]: overviewNode,
                 [SCREEN.FAILED]:

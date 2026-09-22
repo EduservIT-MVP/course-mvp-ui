@@ -1,63 +1,89 @@
-import checkCircle from "../assets/check-circle.svg"
 import Button from "../components/Button"
-import Icon from "../components/Icon"
-import SectionLabel from "../components/SectionLabel"
 import StatusBanner from "../components/StatusBanner"
-
-/** Always render criteria as a list of strings (never iterate a raw string). */
-function normalizeCriteria(raw) {
-  if (Array.isArray(raw)) {
-    return raw
-      .flatMap((item) => {
-        if (typeof item === "string") return [item]
-        if (item && typeof item === "object") return [item.text || item.label || item.title || ""]
-        return [String(item ?? "")]
-      })
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-  if (typeof raw === "string" && raw.trim()) {
-    return raw
-      .split(/\n|;/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-  return []
-}
-
-function parseMinutes(time) {
-  if (!time) return 0
-  const match = String(time).match(/(\d+)/)
-  return match ? Number(match[1]) : 0
-}
+import MarkdownViewer from "../components/MarkdownViewer"
+import { WORKFLOW } from "../workflow/states"
+import { Download, FileCode, Clock, Layers, Sparkles, RefreshCw, Terminal, CheckCircle2 } from "lucide-react"
 
 /**
- * LAB_REVIEW — full lab plan from course.lab (API), then Approve / Regenerate.
- * Binds only to the generated lab object — no local draft / leftover fixtures.
+ * LAB_REVIEW / LAB_APPROVED — full lab plan & generated artifacts.
  */
 export default function LabGeneration({
+  course,
   lab,
-  onGenerate,
+  status,
+  onApproveLab,
+  onStartGuide,
   onRegenerate,
+  onDownloadArtifact,
   busy,
   generating,
   failed,
   error,
-  canGenerate,
+  canApproveLab,
+  canStartGuide,
   canRegenerate,
 }) {
   const plan = lab && typeof lab === "object" ? lab : {}
-  const tasks = Array.isArray(plan.tasks) ? plan.tasks : []
-  const criteria = normalizeCriteria(plan.criteria)
-  const scenario = plan.scenario || ""
-  const environment = plan.environment || ""
-  const assets = plan.assets || ""
-  const description = plan.useCase || plan.description || ""
-  const totalMinutes = tasks.reduce((sum, task) => sum + parseMinutes(task.time), 0)
+  const rawContent = plan.raw || plan.readme || plan.useCase || plan.description || ""
+  const environment = plan.environment || course?.environment || ""
+  const totalMinutes = plan.estimated_time || plan.estimatedTime || course?.estimated_time || null
+  const isApproved = status === WORKFLOW.LAB_APPROVED
+  const labArtifacts = (course?.artifacts || []).filter(
+    (a) =>
+      String(a.type || "").toLowerCase().includes("lab") ||
+      String(a.sourceAgent || "").toLowerCase().includes("lab")
+  )
+
+  if (generating) {
+    return (
+      <section className="lab">
+        <StatusBanner
+          tone="busy"
+          title="Generating lab environment…"
+          message="Building hands-on code files, starter templates, and verification test scripts. Estimated time: 10-15 seconds."
+        />
+      </section>
+    )
+  }
 
   return (
-    <section className="lab">
+    <section className="lab lab-review-layout">
       <div className="lab-plan">
+        <header className="lab-plan-header">
+          <div>
+            <h2>{isApproved ? "Lab Environment Ready" : "Review Lab Plan"}</h2>
+            <p className="lede">
+              {isApproved
+                ? "The hands-on coding scenario and starter artifacts have been generated."
+                : "Review the lab scenario, tasks, and environment specification before building code."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {totalMinutes ? (
+              <span className="lab-summary-badge">
+                <Clock size={13} /> {totalMinutes} min estimated
+              </span>
+            ) : null}
+            {environment ? (
+              <span className="lab-summary-badge">
+                <Terminal size={13} /> {environment}
+              </span>
+            ) : null}
+            <span
+              className="lab-summary-badge"
+              style={
+                isApproved
+                  ? { background: "var(--green)", color: "var(--green-text)" }
+                  : { background: "var(--amber)", color: "var(--amber-text)" }
+              }
+            >
+              {isApproved ? <CheckCircle2 size={13} /> : <Sparkles size={13} />}
+              {isApproved ? "Approved & Ready" : "Plan Review"}
+            </span>
+          </div>
+        </header>
+
+
         {failed ? (
           <StatusBanner
             tone="error"
@@ -66,6 +92,7 @@ export default function LabGeneration({
             action={
               canRegenerate ? (
                 <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
+                  <RefreshCw size={14} style={{ marginRight: 6 }} />
                   Retry
                 </Button>
               ) : null
@@ -73,100 +100,100 @@ export default function LabGeneration({
           />
         ) : null}
 
-        {generating ? (
-          <StatusBanner tone="busy" title="Generating lab…" message="This updates when review is ready." />
-        ) : null}
-
-        <header className="lab-plan-header">
-          <h2>{scenario || "Lab plan"}</h2>
-          {description && description !== scenario ? <p className="lede">{description}</p> : null}
-        </header>
-
-        {(environment || assets) && !generating ? (
-          <div className="lab-meta">
-            {environment ? (
-              <div className="lab-meta-item">
-                <SectionLabel className="lab-meta-label">Environment</SectionLabel>
-                <span className="lab-meta-value">{environment}</span>
-              </div>
-            ) : null}
-            {assets ? (
-              <div className="lab-meta-item">
-                <SectionLabel className="lab-meta-label">Assets provided</SectionLabel>
-                <span className="lab-meta-value">{assets}</span>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {scenario && !generating ? (
-          <section className="lab-section">
-            <h3>Scenario</h3>
-            <p>{scenario}</p>
-          </section>
-        ) : null}
-
-        {tasks.length && !generating ? (
-          <section className="lab-section">
-            <h3>Tasks</h3>
-            <div className="task-list">
-              {tasks.map((task, index) => (
-                <article key={task.n ?? index} className="task">
-                  <div className="task-marker">{task.n ?? index + 1}</div>
-                  <div>
-                    <h3>{task.title}</h3>
-                    <p>{task.detail}</p>
-                  </div>
-                  {task.time ? <span className="task-time">{task.time}</span> : null}
-                </article>
-              ))}
+        <div className="lab-preview-card">
+          {rawContent ? (
+            <MarkdownViewer content={rawContent} />
+          ) : (
+            <div className="brief-card">
+              <h3>No lab plan available yet</h3>
+              <p className="hint">Click regenerate to build a new hands-on lab specification.</p>
+              {canRegenerate ? (
+                <Button variant="accent" onClick={onRegenerate} busy={busy} style={{ marginTop: 12 }}>
+                  <RefreshCw size={14} style={{ marginRight: 6 }} />
+                  Generate Lab Plan
+                </Button>
+              ) : null}
             </div>
-          </section>
-        ) : null}
-
-        {criteria.length && !generating ? (
-          <section className="lab-section criteria">
-            <h3>Success criteria</h3>
-            {criteria.map((item) => (
-              <div key={item} className="criterion">
-                <Icon src={checkCircle} size={16} />
-                <span>{item}</span>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
-        {!generating && !failed && !tasks.length && !criteria.length && !scenario ? (
-          <div className="brief-card">
-            <h3>No lab plan yet</h3>
-            <p className="hint">Generate or regenerate the lab to load the agent output.</p>
-          </div>
-        ) : null}
+          )}
+        </div>
       </div>
 
       <aside className="lab-settings">
         <div className="lab-summary">
-          <h3>Review summary</h3>
-          {totalMinutes ? (
-            <p>
-              <strong>{totalMinutes} min</strong> estimated
-            </p>
-          ) : null}
-          {environment ? <p className="lab-summary-badge">{environment}</p> : null}
-          <p className="hint">
-            Approve to generate the learner lab guide, or regenerate for a new lab plan from the
-            agent.
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Terminal size={18} color="var(--navy)" />
+            <h3 style={{ margin: 0 }}>Review summary</h3>
+          </div>
+
+          <p className="hint" style={{ margin: 0 }}>
+            {isApproved
+              ? "Lab is approved. You can download the generated files or proceed to generate the learner guide."
+              : "Approve to confirm this lab specification, or regenerate for a new plan from the agent."}
           </p>
+
+          {labArtifacts.length > 0 ? (
+            <div style={{ marginTop: 8, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+              <h4 style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "0 0 10px" }}>
+                Generated Artifacts ({labArtifacts.length})
+              </h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {labArtifacts.map((art) => (
+                  <div
+                    key={art.id || art.name}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 10px",
+                      background: "var(--surface-inset)",
+                      borderRadius: "var(--radius-xs)",
+                      fontSize: "12px",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden", minWidth: 0 }}>
+                      <FileCode size={15} color="var(--navy)" style={{ flexShrink: 0 }} />
+                      <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", fontWeight: 550 }}>
+                        {art.name || art.label}
+                      </span>
+                    </div>
+                    {onDownloadArtifact ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onDownloadArtifact(art)}
+                        disabled={busy}
+                        title={`Download ${art.name}`}
+                        style={{ padding: "4px 8px", fontSize: "11px", flexShrink: 0 }}
+                      >
+                        <Download size={12} style={{ marginRight: 4 }} />
+                        Download
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
+
         <div className="actions">
-          {canGenerate ? (
-            <Button variant="accent" onClick={onGenerate} busy={busy || generating} disabled={busy || generating}>
-              {busy ? "Submitting…" : "Approve →"}
+          {isApproved ? (
+            canStartGuide ? (
+              <Button variant="accent" onClick={onStartGuide} disabled={busy}>
+                Generate lab guide →
+              </Button>
+            ) : null
+          ) : canApproveLab && rawContent ? (
+            <Button variant="accent" onClick={onApproveLab} disabled={busy}>
+              Approve Lab
             </Button>
           ) : null}
+
           {canRegenerate ? (
-            <Button variant="secondary" onClick={onRegenerate} busy={busy || generating} disabled={busy || generating}>
-              Regenerate
+            <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
+              <RefreshCw size={14} style={{ marginRight: 6 }} />
+              Regenerate Lab
             </Button>
           ) : null}
         </div>
@@ -174,3 +201,4 @@ export default function LabGeneration({
     </section>
   )
 }
+

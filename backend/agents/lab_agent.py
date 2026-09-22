@@ -9,6 +9,13 @@ from config import JOB_DELAY, AGENT_LAB_URL
 from agents.client import _call_agent_json
 
 
+def _slug(title: str) -> str:
+    cleaned = "".join(ch.lower() if ch.isalnum() else "-" for ch in (title or "course"))
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-") or "course"
+
+
 def _split_list(text: str | None) -> list[str]:
     if not text:
         return []
@@ -17,9 +24,9 @@ def _split_list(text: str | None) -> list[str]:
 
 def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
     """
-    Generate practical lab exercise.
+    Generate practical lab exercise and its artifacts.
     If AGENT_LAB_URL is configured, calls the external Lab agent server.
-    Otherwise generates structured lab exercise locally as fallback.
+    Otherwise generates structured lab exercise and dynamic artifacts locally as fallback.
     """
     if AGENT_LAB_URL:
         payload = {"course": course, "lab_input": lab_input or {}}
@@ -32,86 +39,92 @@ def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
 
     time.sleep(JOB_DELAY)
     lab_input = lab_input or {}
-    title = (course.get("title") or "CIBA Grant Flow Lab").strip() or "CIBA Grant Flow Lab"
+    title = (course.get("title") or "Generic Course").strip() or "Generic Course"
+    slug = _slug(title)
+    
     raw_criteria = _split_list(course.get("objectives"))
     if len(raw_criteria) >= 2 or (len(raw_criteria) == 1 and len(raw_criteria[0]) > 28):
         criteria = raw_criteria
     else:
         criteria = [
-            "CIBA authorization request is initiated out-of-band without direct credential prompts",
-            "Async approval polling status lifecycle executes correctly",
-            "Bypass wrong-choice path triggers instructional security error message",
-            "All test assertions pass using Pytest and Mockk",
+            "The environment is properly initialized",
+            "The core logic correctly implements the required features",
+            "All test assertions pass successfully",
         ]
-    scenario = (lab_input.get("scenario") or "").strip() or title
-    environment = (lab_input.get("environment") or "").strip() or "Docker, Python 3.11, Flask, Pytest, Mockk"
-    assets = (lab_input.get("assets") or "").strip() or "Lab repository starter files, CIBA emulator, evaluation rubric"
+    scenario = (lab_input.get("scenario") or "").strip() or f"{title} Guided Exercise"
+    environment = (lab_input.get("environment") or "").strip() or "Node.js / Express"
     
     sample_readme = (
-        f"# {title}\n\n"
-        "**Summary:** This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, "
-        "where a client requests authorization from a user through an out-of-band method.\n\n"
-        "**Trainee persona / decision:** Helpdesk Agent\n\n"
-        "## Steps\n"
-        "1. Start an action on the index page to initiate a CIBA grant flow\n"
-        "2. The action calls the client module, which simulates an async approval flow\n"
-        "3. The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'\n"
-        "4. The trainee can simulate the request being approved or denied through dev-only endpoints\n"
-        "5. The trainee is redirected to a success or denied page, depending on the outcome\n\n"
-        "## Wrong-choice path\n"
-        "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
-        "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication.\n\n"
-        "## Simulated systems (no real network calls, no real credentials)\n"
-        "Async Approval Service\n"
-        "CIBA Authenticator\n\n"
-        "## Expected packages\n"
-        "Flask\n"
-        "Pytest\n"
-        "Mockk\n"
+        f"# {title} - Hands-on Lab\n\n"
+        f"**Summary:** This lab provides a guided, hands-on coding scenario for **{title}**.\n\n"
+        "**Target Persona:** Intermediate Developer / Engineer\n\n"
+        "## Core Objectives & Success Criteria\n"
+        + "".join(f"- {c}\n" for c in criteria) + "\n"
+        "## Architecture & Environment\n"
+        f"- **Runtime Environment:** {environment}\n"
+        "- **Test Runner:** Mocha / Jest\n"
+        "- **Simulated Services:** Mock Gateway, Local State Store\n\n"
+        "## Milestone Tasks\n"
+        "1. **Environment Initialization:** Validate configuration files and verify dependencies.\n"
+        "2. **Feature Implementation:** Implement the handler methods according to the specification.\n"
+        "3. **Unit & Integration Verification:** Run automated test assertions to confirm criteria.\n\n"
+        "## Verification Command\n"
+        "```bash\nnpm test\n```\n"
     )
 
-    return {
-        "scenario": scenario,
-        "environment": environment,
-        "assets": assets,
-        "readme": sample_readme,
-        "persona": "Helpdesk Agent",
-        "summary": "This lab demonstrates the Client Initiated Backchannel Authentication (CIBA) grant flow, where a client requests authorization from a user through an out-of-band method.",
-        "wrongChoicePath": (
-            "If the trainee chooses to bypass the CIBA grant flow and attempt to authenticate the user directly, "
-            "they will encounter an error message explaining the importance of using CIBA for secure and user-friendly authentication."
-        ),
-        "simulatedSystems": [
-            "Async Approval Service",
-            "CIBA Authenticator",
-        ],
-        "expectedPackages": [
-            "Flask",
-            "Pytest",
-            "Mockk",
-        ],
-        "steps": [
-            "Start an action on the index page to initiate a CIBA grant flow",
-            "The action calls the client module, which simulates an async approval flow",
-            "The trainee is redirected to a pending page that polls a status endpoint while the request is 'in flight'",
-            "The trainee can simulate the request being approved or denied through dev-only endpoints",
-            "The trainee is redirected to a success or denied page, depending on the outcome",
-        ],
-        "tasks": [
-            {"n": 1, "title": "Initiate CIBA Grant Flow", "detail": "Start an action on the index page to initiate a CIBA grant flow via client module.", "time": "10 min"},
-            {"n": 2, "title": "Simulate Asynchronous Approval", "detail": "Poll status endpoint while request is in flight and simulate approval/denial.", "time": "25 min"},
-            {"n": 3, "title": "Verify Outcomes & Test Wrong-Choice Guard", "detail": "Verify redirection to outcome page and ensure bypass attempts trigger explanatory feedback.", "time": "15 min"},
-        ],
-        "criteria": criteria,
-        "code": {
-            "language": "python",
-            "files": [
-                {
-                    "path": "lab/app.py",
-                    "content": f"# Lab starter for {title}\nfrom flask import Flask\napp = Flask(__name__)\n",
-                }
-            ],
+    starter_code = (
+        f"/**\n * {title} - Starter Implementation\n * Auto-generated by Lab Agent\n */\n\n"
+        f"console.log('Initializing {title} lab environment...');\n\n"
+        "class LabExercise {\n"
+        "  constructor() {\n"
+        "    this.isReady = true;\n"
+        "    this.results = [];\n"
+        "  }\n\n"
+        "  executeTask(taskId) {\n"
+        "    // TODO: Implement task logic\n"
+        "    return { status: 'success', taskId };\n"
+        "  }\n"
+        "}\n\n"
+        "module.exports = { LabExercise };\n"
+    )
+
+    test_code = (
+        f"/**\n * {title} - Automated Verification Tests\n * Auto-generated by Lab Agent\n */\n\n"
+        "const assert = require('assert');\n"
+        "const { LabExercise } = require('./" + slug + "-starter.js');\n\n"
+        "describe('" + title + " Lab Verification', () => {\n"
+        "  it('should initialize successfully', () => {\n"
+        "    const lab = new LabExercise();\n"
+        "    assert.strictEqual(lab.isReady, true);\n"
+        "  });\n\n"
+        "  it('should execute tasks correctly', () => {\n"
+        "    const lab = new LabExercise();\n"
+        "    const res = lab.executeTask(1);\n"
+        "    assert.strictEqual(res.status, 'success');\n"
+        "  });\n"
+        "});\n"
+    )
+
+    artifacts = [
+        {
+            "name": f"{slug}-starter.js",
+            "label": f"{title} Starter Code",
+            "type": "lab-starter",
+            "mime_type": "text/javascript",
+            "content": starter_code,
         },
-        "useCase": (lab_input.get("scenario") or "").strip()
-        or f"Apply {title} concepts in a guided hands-on exercise.",
+        {
+            "name": f"{slug}-test.js",
+            "label": "Automated Verification Suite",
+            "type": "lab-test",
+            "mime_type": "text/javascript",
+            "content": test_code,
+        },
+    ]
+
+    return {
+        "raw": sample_readme,
+        "estimated_time": 45,
+        "environment": environment,
+        "artifacts": artifacts,
     }
