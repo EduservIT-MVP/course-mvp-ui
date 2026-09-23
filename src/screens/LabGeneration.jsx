@@ -28,6 +28,8 @@ export default function LabGeneration({
   const environment = plan.environment || course?.environment || ""
   const totalMinutes = plan.estimated_time || plan.estimatedTime || course?.estimated_time || null
   const isApproved = status === WORKFLOW.LAB_APPROVED
+  const isLabReady = status === WORKFLOW.LAB_REVIEW || isApproved
+  const isPlanReview = status === WORKFLOW.LAB_PLAN_REVIEW
   const labArtifacts = (course?.artifacts || []).filter(
     (a) =>
       String(a.type || "").toLowerCase().includes("lab") ||
@@ -35,12 +37,15 @@ export default function LabGeneration({
   )
 
   if (generating) {
+    const isPlan = status === WORKFLOW.LAB_PLAN_GENERATING;
     return (
       <section className="lab">
         <StatusBanner
           tone="busy"
-          title="Generating lab environment…"
-          message="Building hands-on code files, starter templates, and verification test scripts. Estimated time: 10-15 seconds."
+          title={isPlan ? "Drafting lab scenario…" : "Generating lab environment…"}
+          message={isPlan 
+            ? "The AI agent is analyzing the course context and outlining a hands-on lab scenario. This may take a minute." 
+            : "Building hands-on code files, starter templates, and verification test scripts. This may take a few minutes depending on the agent."}
         />
       </section>
     )
@@ -51,10 +56,12 @@ export default function LabGeneration({
       <div className="lab-plan">
         <header className="lab-plan-header">
           <div>
-            <h2>{isApproved ? "Lab Environment Ready" : "Review Lab Plan"}</h2>
+            <h2>{isApproved ? "Lab Environment Approved" : isLabReady ? "Review Generated Lab" : "Review Lab Plan"}</h2>
             <p className="lede">
               {isApproved
-                ? "The hands-on coding scenario and starter artifacts have been generated."
+                ? "The hands-on coding scenario and starter artifacts have been generated and approved."
+                : isLabReady
+                ? "Review the generated hands-on coding scenario and starter artifacts."
                 : "Review the lab scenario, tasks, and environment specification before building code."}
             </p>
           </div>
@@ -72,13 +79,13 @@ export default function LabGeneration({
             <span
               className="lab-summary-badge"
               style={
-                isApproved
+                isLabReady
                   ? { background: "var(--green)", color: "var(--green-text)" }
                   : { background: "var(--amber)", color: "var(--amber-text)" }
               }
             >
-              {isApproved ? <CheckCircle2 size={13} /> : <Sparkles size={13} />}
-              {isApproved ? "Approved & Ready" : "Plan Review"}
+              {isLabReady ? <CheckCircle2 size={13} /> : <Sparkles size={13} />}
+              {isApproved ? "Approved & Ready" : isLabReady ? "Lab Ready" : "Plan Review"}
             </span>
           </div>
         </header>
@@ -128,10 +135,14 @@ export default function LabGeneration({
           <p className="hint" style={{ margin: 0 }}>
             {isApproved
               ? "Lab is approved. You can download the generated files or proceed to generate the learner guide."
+              : isLabReady
+              ? "Approve the generated artifacts, or regenerate if you need changes."
               : "Approve to confirm this lab specification, or regenerate for a new plan from the agent."}
           </p>
 
-          {labArtifacts.length > 0 ? (
+
+
+          {isLabReady && labArtifacts.length > 0 ? (
             <div style={{ marginTop: 8, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
               <h4 style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "0 0 10px" }}>
                 Generated Artifacts ({labArtifacts.length})
@@ -186,14 +197,14 @@ export default function LabGeneration({
             ) : null
           ) : canApproveLab && rawContent ? (
             <Button variant="accent" onClick={onApproveLab} disabled={busy}>
-              Approve Lab
+              {status === WORKFLOW.LAB_PLAN_REVIEW ? "Approve Plan & Generate Lab" : "Approve Lab & Generate Guide"}
             </Button>
           ) : null}
 
-          {canRegenerate ? (
+          {!isApproved && canRegenerate ? (
             <Button variant="secondary" onClick={onRegenerate} disabled={busy}>
               <RefreshCw size={14} style={{ marginRight: 6 }} />
-              Regenerate Lab
+              Regenerate {status === WORKFLOW.LAB_PLAN_REVIEW ? "Plan" : "Lab"}
             </Button>
           ) : null}
         </div>

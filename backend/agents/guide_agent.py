@@ -71,69 +71,18 @@ def agent_generate_guide_plan(course: dict, lab: dict | None = None) -> dict:
 
 
 
-def agent_generate_guide(course: dict, lab: dict | None = None) -> dict:
+def agent_generate_guide(course: dict, lab: dict | None = None) -> bytes:
     """
-    Generate practical lab guide document.
+    Generate practical lab guide PDF document.
     If AGENT_LAB_GUIDE_URL is configured, calls the external Guide agent server.
-    Otherwise generates a fallback guide locally.
+    Otherwise generates a fallback PDF locally.
     """
     if AGENT_LAB_GUIDE_URL:
+        from agents.client import _call_agent_binary
         payload = {"course": course, "lab": lab or {}}
-        res = _call_agent_json("GUIDE", AGENT_LAB_GUIDE_URL, payload)
-        if isinstance(res, dict) and "guide" in res and isinstance(res["guide"], dict):
-            return res["guide"]
-        if isinstance(res, dict):
-            return res
-        raise ValueError(f"Agent [GUIDE] returned invalid response format: {type(res)}")
+        return _call_agent_binary("GUIDE", AGENT_LAB_GUIDE_URL, payload)
 
     time.sleep(JOB_DELAY)
     
-    title = (course.get("title") or "Generic Course").strip() or "Generic Course"
-    lab_scenario = f"{title} Guided Exercise"
-    
-    pages = [
-        {
-            "id": "overview",
-            "label": "Overview",
-            "kicker": "GETTING STARTED",
-            "title": f"Lab Overview: {title}",
-            "lede": "Welcome to the hands-on lab. In this exercise, you will put theoretical concepts into practice by completing a guided implementation.",
-            "content": f"### Welcome to the Lab\n\nThis lab is designed to give you practical experience with the concepts covered in this course.\n\n**Prerequisites**\n- Basic understanding of {title}\n- Access to the lab environment\n\n**Expected Time**\n- 45 minutes",
-        },
-        {
-            "id": "setup",
-            "label": "Setup",
-            "kicker": "ENVIRONMENT",
-            "title": "Workspace & Tooling Configuration",
-            "lede": "Confirm your containerized workspace is online and environment variables are properly initialized before starting the tasks.",
-            "content": "### Environment Setup\n\n1. Open your terminal.\n2. Run `docker-compose up -d` to start the required services.\n3. Verify that all containers are running successfully using `docker ps`.\n4. Initialize the environment dependencies.",
-        },
-        {
-            "id": "walkthrough",
-            "label": "Walkthrough",
-            "kicker": "EXECUTION",
-            "title": "Step-by-Step Exercise Execution",
-            "lede": "Follow each milestone in sequential order, validating intermediate state and capturing debugging logs as you proceed.",
-            "content": "### Step 1: Initialize the Project\nRun the initial scaffolding command to create the base structure.\n\n### Step 2: Implement the Core Logic\nAdd the primary logic to fulfill the requirements.\n\n### Step 3: Test the Integration\nTrigger the test suite to observe the results.",
-        },
-        {
-            "id": "verification",
-            "label": "Verification",
-            "kicker": "EVALUATION",
-            "title": "Assessment & Success Verification",
-            "lede": "Verify your finished implementation against the success rubric, run the automated validation script, and review outcomes.",
-            "content": "### Success Verification\n\nRun the automated test suite:\n```bash\nnpm run test:e2e\n```\n\n**Expected Output:**\nAll integration tests should pass. If any fail, review the error logs and adjust your logic.",
-        },
-    ]
-
-    return {
-        "title": f"{title} Lab Guide",
-        "outcomes": [
-            "Understand the system architecture and runtime constraints",
-            "Complete the guided hands-on implementation steps",
-            "Validate outcomes against defined evaluation rubrics",
-        ],
-        "pages": pages,
-        "sections": pages,
-        "plan": f"# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the local environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** Intermediate learners who have completed the prerequisites.\n**Estimated Duration:** 45 minutes.\n\n*(Approve this plan to generate the full guide content)*",
-    }
+    # Fallback to minimal PDF
+    return b"%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Outlines 2 0 R\n/Pages 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Outlines\n/Count 0\n>>\nendobj\n3 0 obj\n<<\n/Type /Pages\n/Count 1\n/Kids [ 4 0 R ]\n>>\nendobj\n4 0 obj\n<<\n/Type /Page\n/Parent 3 0 R\n/MediaBox [ 0 0 612 792 ]\n/Contents 5 0 R\n/Resources <<\n/ProcSet [ /PDF /Text ]\n/Font << /F1 6 0 R >>\n>>\n>>\nendobj\n5 0 obj\n<< /Length 73 >>\nstream\nBT\n/F1 24 Tf\n100 100 Td\n(Mock PDF Generated successfully) Tj\nET\nendstream\nendobj\n6 0 obj\n<<\n/Type /Font\n/Subtype /Type1\n/Name /F1\n/BaseFont /Helvetica\n/Encoding /MacRomanEncoding\n>>\nendobj\ntrailer\n<<\n/Size 7\n/Root 1 0 R\n>>\n%%EOF"

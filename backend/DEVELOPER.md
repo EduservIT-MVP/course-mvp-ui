@@ -16,7 +16,7 @@ flowchart LR
 
     subgraph External Standalone Agents
         PPTX[PPTX Agent\nAGENT_PPTX_URL]
-        LAB[Lab Agent\nAGENT_LAB_URL]
+        LAB[Lab Agent\nAGENT_LAB_PLAN_URL\nAGENT_LAB_URL]
         GUIDE[Lab Guide Agent\nAGENT_LAB_GUIDE_URL]
     end
 
@@ -72,6 +72,7 @@ Set the agent endpoints in `backend/.env`:
 ```env
 # ── Agent Microservice Endpoints ────────────────────────────────────────────
 AGENT_PPTX_URL=http://localhost:8001/build-pptx
+AGENT_LAB_PLAN_URL=http://localhost:8002/generate-lab-plan
 AGENT_LAB_URL=http://localhost:8002/generate-lab
 AGENT_LAB_GUIDE_URL=http://localhost:8003/generate-guide
 
@@ -160,14 +161,16 @@ async def build_pptx(payload: dict):
 
 ## 5. Agent 2: Practical Lab Agent
 
-### Contract Overview
-- **Environment Variable**: `AGENT_LAB_URL`
+This agent uses a two-step flow: Plan Generation, then Artifact Generation.
+
+### Step 1: Lab Plan Generation
+- **Environment Variable**: `AGENT_LAB_PLAN_URL`
 - **HTTP Method**: `POST`
 - **Request Content-Type**: `application/json`
 - **Response Content-Type**: `application/json`
-- **Response Body**: Structured lab exercise JSON.
+- **Response Body**: Structured lab exercise JSON (without artifacts).
 
-### Request Payload Sent by Backend
+#### Request Payload
 ```json
 {
   "course": {
@@ -185,50 +188,54 @@ async def build_pptx(payload: dict):
 }
 ```
 
-### Expected JSON Response Format
+#### Expected JSON Response Format
+```json
+{
+  "lab": {
+    "raw": "# Cloud Microservices Mastery Lab\n\n**Summary:** This lab provides a hands-on exercise...",
+    "estimated_time": 50,
+    "environment": "Kubernetes Minikube + Istio"
+  }
+}
+```
+
+### Step 2: Lab Artifact Generation
+- **Environment Variable**: `AGENT_LAB_URL`
+- **HTTP Method**: `POST`
+- **Request Content-Type**: `application/json`
+- **Response Content-Type**: `application/json`
+- **Response Body**: Structured lab exercise JSON containing the plan and code artifacts.
+
+#### Request Payload (includes previously approved plan)
+```json
+{
+  "course": {
+    "id": "ca07c71b...",
+    "title": "Cloud Microservices Mastery",
+    "lab_plan": {
+       "raw": "...",
+       "estimated_time": 50,
+       "environment": "Kubernetes Minikube + Istio"
+    }
+  }
+}
+```
+
+#### Expected JSON Response Format
 Your agent must return either `{"lab": { ... }}` or the lab dictionary directly:
 
 ```json
 {
   "lab": {
-    "scenario": "Deploy and trace microservices in Kubernetes",
+    "raw": "...",
+    "estimated_time": 50,
     "environment": "Kubernetes Minikube + Istio",
-    "assets": "Lab repository starter files, evaluation rubric",
-    "tasks": [
-      {
-        "n": 1,
-        "title": "Configure Runtime Environment & Dependencies",
-        "detail": "Clone the starter repository, inspect environment configuration, and install dependencies.",
-        "time": "15 min"
-      },
-      {
-        "n": 2,
-        "title": "Implement the Core Agent Workflow",
-        "detail": "Wire the request handler to parse incoming telemetry and log structured metrics.",
-        "time": "30 min"
-      },
-      {
-        "n": 3,
-        "title": "Execute Verification Suite & Benchmark Latency",
-        "detail": "Run integration tests and confirm all evaluation criteria and assertions pass.",
-        "time": "15 min"
-      }
-    ],
-    "criteria": [
-      "Service successfully starts and passes automated health check assertions",
-      "Core workflow correctly handles edge cases without unhandled exceptions",
-      "Telemetry output conforms to the structured JSON schema"
-    ],
-    "code": {
-      "language": "javascript",
-      "files": [
+    "artifacts": [
         {
-          "path": "lab/starter.js",
+          "name": "starter.js",
           "content": "// Starter code for the hands-on lab\nexport function run() {\n  return true;\n}\n"
         }
-      ]
-    },
-    "useCase": "Apply microservice resilience patterns in a guided exercise."
+    ]
   }
 }
 ```
@@ -239,32 +246,33 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
+@app.post("/generate-lab-plan")
+async def generate_lab_plan(payload: dict):
+    course = payload.get("course", {})
+    # Call your LLM / agent chain to create the markdown plan
+    return {
+        "lab": {
+            "raw": f"# {course.get('title')} Lab\n\nSteps:\n1. ...",
+            "estimated_time": 45,
+            "environment": "Node.js"
+        }
+    }
+
 @app.post("/generate-lab")
 async def generate_lab(payload: dict):
     course = payload.get("course", {})
-    lab_input = payload.get("lab_input", {})
-    title = course.get("title", "Hands-on Lab")
-
-    # Call your LLM / agent chain to create tasks and starter code
-    return {
-        "lab": {
-            "scenario": lab_input.get("scenario") or f"Hands-on exercise for {title}",
-            "environment": lab_input.get("environment") or "Docker container",
-            "assets": "Sample configs, automated test suite",
-            "tasks": [
-                {"n": 1, "title": "Setup Workspace", "detail": "Prepare tools", "time": "10 min"},
-                {"n": 2, "title": "Implement Solution", "detail": "Write code", "time": "25 min"},
-                {"n": 3, "title": "Validate Outcomes", "detail": "Run checks", "time": "15 min"}
-            ],
-            "criteria": ["All tests pass", "Zero linter warnings"],
-            "code": {
-                "language": "javascript",
-                "files": [
-                    {"path": "solution.js", "content": "// Starter implementation\n"}
-                ]
-            },
-            "useCase": f"Practical application of {title}"
+    lab_plan = course.get("lab_plan", {})
+    
+    # Call your LLM / agent chain to create code files based on the plan
+    lab_plan["artifacts"] = [
+        {
+            "name": "setup.sh",
+            "content": "#!/bin/bash\necho 'Setup complete'"
         }
+    ]
+    
+    return {
+        "lab": lab_plan
     }
 ```
 

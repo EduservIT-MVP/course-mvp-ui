@@ -13,7 +13,8 @@ For complete step-by-step instructions on integrating standalone agent microserv
 | Agent | Environment Variable | Expected Output | Purpose |
 | :--- | :--- | :--- | :--- |
 | **PPTX Agent** | `AGENT_PPTX_URL` | Binary (`application/vnd.openxmlformats-officedocument.presentationml.presentation`) | Assembles `.pptx` presentations |
-| **Lab Agent** | `AGENT_LAB_URL` | JSON (`{ "lab": { "scenario": ..., "tasks": [...], "code": ... } }`) | Generates practical lab exercises & rubrics |
+| **Lab Plan Agent** | `AGENT_LAB_PLAN_URL` | JSON (`{ "lab": { "raw": ... } }`) | Generates the markdown lab scenario/plan |
+| **Lab Agent** | `AGENT_LAB_URL` | JSON (`{ "lab": { "artifacts": [...] } }`) | Generates practical lab code artifacts from the plan |
 | **Lab Guide Agent** | `AGENT_LAB_GUIDE_URL` | JSON (`{ "guide": { "title": ..., "pages": [...] } }`) | Generates step-by-step lab walkthrough documentation |
 
 ---
@@ -23,6 +24,7 @@ For complete step-by-step instructions on integrating standalone agent microserv
 1. **Configure your endpoints in `backend/.env`**:
    ```env
    AGENT_PPTX_URL=http://localhost:8001/build-pptx
+   AGENT_LAB_PLAN_URL=http://localhost:8002/generate-lab-plan
    AGENT_LAB_URL=http://localhost:8002/generate-lab
    AGENT_LAB_GUIDE_URL=http://localhost:8003/generate-guide
    ```

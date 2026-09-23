@@ -322,11 +322,43 @@ def write_lab_artifact(course) -> Artifact:
     return arts[0] if arts else None
 
 
-def write_guide_artifact(course) -> Artifact:
-    name = f"{_slug(course.title)}-guide.json"
+def _detect_guide_mime(content: bytes) -> tuple[str, str]:
+    """Detect mime type and file extension from raw bytes.
+    Returns (mime_type, extension).
+    """
+    if content and len(content) >= 4:
+        # PDF: starts with %PDF
+        if content[:4] == b"%PDF":
+            return "application/pdf", ".pdf"
+        # DOCX / XLSX / PPTX: ZIP format starting with PK..
+        if content[:2] == b"PK":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"
+    return "application/pdf", ".pdf"
+
+
+def write_guide_artifact(course, content: bytes = None, mime_type: str = None) -> Artifact:
+    """Write lab guide artifact to disk. Auto-detects PDF vs DOCX from content bytes."""
+    slug = _slug(course.title)
+    if content and not mime_type:
+        mime_type, ext = _detect_guide_mime(content)
+    elif mime_type:
+        # Derive extension from explicit mime_type
+        _mime_ext = {
+            "application/pdf": ".pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+            "application/msword": ".doc",
+        }
+        ext = _mime_ext.get(mime_type, ".pdf")
+    else:
+        mime_type, ext = "application/pdf", ".pdf"
+
+    name = f"{slug}-guide{ext}"
     rel = f"{course.id}/{name}"
     path = ARTIFACTS_DIR / course.id
     path.mkdir(parents=True, exist_ok=True)
-    (path / name).write_text(json.dumps(course.guide or {}, indent=2), encoding="utf-8")
-    return _upsert_artifact(course, type_="lab-guide", name=name, label="Lab guide", mime_type="application/json", relative_path=rel, source_agent="lab_guide")
+    if content:
+        (path / name).write_bytes(content)
+    else:
+        (path / name).write_text(json.dumps(course.guide or {}, indent=2), encoding="utf-8")
+    return _upsert_artifact(course, type_="lab-guide", name=name, label="Lab guide", mime_type=mime_type, relative_path=rel, source_agent="lab_guide")
 

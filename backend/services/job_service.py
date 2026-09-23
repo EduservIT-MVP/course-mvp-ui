@@ -11,7 +11,7 @@ from celery import shared_task
 from config import ARTIFACTS_DIR
 from models.course import Course
 from agents.pptx_agent import agent_build_pptx, agent_generate_ppt_plan, agent_regenerate_slides
-from agents.lab_agent import agent_generate_lab
+from agents.lab_agent import agent_generate_lab, agent_generate_lab_plan
 from agents.guide_agent import agent_generate_guide, agent_generate_guide_plan
 from services.artifact_service import (
     write_ppt_artifact,
@@ -107,6 +107,23 @@ def job_regenerate_slides(course_id: str, slides: list, prompt: str, notes: str)
 
 
 @shared_task(ignore_result=True)
+def job_generate_lab_plan(course_id: str, lab_input: dict | None = None) -> None:
+    course = db.session.get(Course, course_id)
+    if not course:
+        return
+    try:
+        merged = {**(course.lab_plan or {}), **(lab_input or {})}
+        course.lab_plan = agent_generate_lab_plan(course.to_dict(), merged)
+        course.status = "LAB_PLAN_REVIEW"
+        course.stage = "Lab plan ready for review"
+        course.error = None
+        course.updated_at = utcnow()
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        _fail(course_id, 2, str(exc) or "Lab plan generation failed.")
+
+@shared_task(ignore_result=True)
 def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
     course = db.session.get(Course, course_id)
     if not course:
@@ -119,13 +136,8 @@ def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
                 write_lab_artifacts(course)
             except Exception as art_err:
                 logger.warning("Could not write lab artifacts: %s", art_err)
-        try:
-            guide_preview = agent_generate_guide(course.to_dict(), course.lab)
-            course.guide = {"plan": guide_preview.get("plan", "No plan provided by agent.")}
-        except Exception as e:
-            course.guide = {"plan": f"Could not generate plan preview: {e}"}
         course.status = "LAB_REVIEW"
-        course.stage = "Lab ready for approval"
+        course.stage = "Lab environment ready"
         course.error = None
         course.updated_at = utcnow()
         db.session.commit()
@@ -159,8 +171,9 @@ def job_generate_guide(course_id: str) -> None:
     try:
         if course.lab:
             write_lab_artifacts(course)
-        course.guide = agent_generate_guide(course.to_dict(), course.lab)
-        write_guide_artifact(course)
+        guide_bytes = agent_generate_guide(course.to_dict(), course.lab)
+        write_guide_artifact(course, content=guide_bytes)
+        course.guide = {"name": f"{course.title or 'Course'} Lab Guide.pdf", "pdf_generated": True}
         if (course.ppt_plan or getattr(course, "plan", None)) and not any(a.type == "ppt" for a in (course.artifacts or [])):
             write_ppt_artifact(course, content=agent_build_pptx(course.to_dict()))
         course.status = "COMPLETE"

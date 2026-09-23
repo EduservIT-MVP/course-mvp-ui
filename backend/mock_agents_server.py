@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import http.server
+import time
 import json
 import socketserver
 import sys
@@ -21,6 +22,15 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 PPT_TEMPLATE = BASE_DIR / "ppt" / "Advanced Topic- 2.Access Token Management.pptx"
+
+# Sample guide document – PDF takes priority, then DOCX, then fallback to minimal PDF
+_GUIDE_CANDIDATES = [
+    BASE_DIR / "ppt" / "Lab VM walkthrough.pdf",
+    BASE_DIR / "ppt" / "lab_guide_sample.pdf",
+    BASE_DIR / "ppt" / "lab_guide_sample.docx",
+]
+
+MINIMAL_PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Outlines 2 0 R\n/Pages 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Outlines\n/Count 0\n>>\nendobj\n3 0 obj\n<<\n/Type /Pages\n/Count 1\n/Kids [ 4 0 R ]\n>>\nendobj\n4 0 obj\n<<\n/Type /Page\n/Parent 3 0 R\n/MediaBox [ 0 0 612 792 ]\n/Contents 5 0 R\n/Resources <<\n/ProcSet [ /PDF /Text ]\n/Font << /F1 6 0 R >>\n>>\n>>\nendobj\n5 0 obj\n<< /Length 73 >>\nstream\nBT\n/F1 24 Tf\n100 100 Td\n(Mock PDF Generated successfully) Tj\nET\nendstream\nendobj\n6 0 obj\n<<\n/Type /Font\n/Subtype /Type1\n/Name /F1\n/BaseFont /Helvetica\n/Encoding /MacRomanEncoding\n>>\nendobj\ntrailer\n<<\n/Size 7\n/Root 1 0 R\n>>\n%%EOF"
 
 
 def get_mock_pptx_bytes() -> bytes:
@@ -31,31 +41,106 @@ def get_mock_pptx_bytes() -> bytes:
     return b"PK\x03\x04" + b"\x00" * 200
 
 
-def get_mock_lab_data(course_title: str = "Modern Architecture") -> dict:
-    """Return realistic lab exercise structure with dynamic course title."""
+def get_mock_guide_bytes() -> tuple[bytes, str]:
+    """Return sample guide file bytes and its mime type.
+    Prefers a real PDF or DOCX from the ppt/ folder; falls back to minimal PDF.
+    Returns (bytes, mime_type).
+    """
+    mime_map = {
+        ".pdf":  "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc":  "application/msword",
+    }
+    for candidate in _GUIDE_CANDIDATES:
+        if candidate.is_file():
+            suffix = candidate.suffix.lower()
+            mime = mime_map.get(suffix, "text/javascript")
+            print(f"  [Guide Mock] Serving '{candidate.name}' ({mime})", flush=True)
+            return candidate.read_bytes(), mime
+    # Fallback to in-memory minimal PDF
+    return MINIMAL_PDF_BYTES, "application/pdf"
+
+
+def get_mock_lab_plan_data(course: dict, lab_input: dict) -> dict:
+    """Return realistic lab plan structure without artifacts."""
+    course_title = course.get("title") or "Modern Architecture"
+    audience = course.get("audience") or "Learner"
+    env = lab_input.get("environment") or course.get("environment") or "Standard Browser Workspace"
+    scenario = lab_input.get("scenario") or "Implement the core concepts"
+    duration = course.get("duration") or "50 minutes"
+    
+    # Try to extract just the number if duration is a string like "45 minutes"
+    est_time = 50
+    if isinstance(duration, str):
+        nums = [int(s) for s in duration.split() if s.isdigit()]
+        if nums:
+            est_time = nums[0]
+
     sample_readme = (
         f"# {course_title} Lab\n\n"
         f"**Summary:** This lab provides a hands-on exercise for {course_title}.\n\n"
-        "**Trainee persona / decision:** Learner\n\n"
+        f"**Trainee persona / decision:** {audience}\n\n"
         "## Steps\n"
-        "1. Start the workspace environment\n"
-        "2. Implement the core concepts\n"
+        f"1. Start the {env} environment\n"
+        f"2. {scenario}\n"
         "3. Validate against the success criteria\n"
     )
 
-    import random
-    reg_id = random.randint(1000, 9999)
     return {
         "lab": {
-            "raw": sample_readme + f"\n\n*(ID: {reg_id})*",
-            "estimated_time": 50,
-            "environment": "Standard Browser Workspace",
+            "raw": sample_readme,
+            "estimated_time": est_time,
+            "environment": env,
         }
     }
 
 
-def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
+def get_mock_lab_data(course: dict, lab_input: dict) -> dict:
+    """Return realistic lab exercise structure with artifacts."""
+    course_title = course.get("title") or "Modern Architecture"
+    plan_data = get_mock_lab_plan_data(course, lab_input)
+    
+    # Overwrite the short plan raw text with the fully fleshed-out lab manual content
+    plan_data["lab"]["raw"] = (
+        f"# {course_title} Lab - Full Instructions\n\n"
+        "## 1. Setup Phase\n"
+        f"Initialize the {plan_data['lab']['environment']} environment and install all necessary dependencies by running `setup.sh`.\n\n"
+        "## 2. Execution Phase\n"
+        "Implement the core logic in `index.js`. You will need to write functions to handle the primary requirements of this exercise.\n\n"
+        "## 3. Validation\n"
+        "Run the automated test suite to ensure your implementation meets all the success criteria. If tests fail, review the error logs and debug your code."
+    )
+    
+    # Add artifacts to the plan data for the actual lab generation step
+    plan_data["lab"]["artifacts"] = [
+        {
+            "name": "setup.sh",
+            "content": "#!/bin/bash\necho \"Setting up workspace for " + course_title + "\"\n"
+        },
+        {
+            "name": "index.js",
+            "content": "console.log('Welcome to " + course_title + " lab');\n"
+        }
+    ]
+    return plan_data
+
+
+
+
+def get_mock_guide_plan_data(course: dict, lab_input: dict) -> dict:
+    """Return realistic lab guide plan."""
+    course_title = course.get("title") or "Modern Architecture"
+    audience = course.get("audience") or "Learner"
+    duration = course.get("duration") or "50 minutes"
+    
+    return {
+        "plan": f"# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the local environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** {audience}\n**Estimated Duration:** {duration}."
+    }
+
+def get_mock_guide_data(course: dict, lab_input: dict) -> dict:
     """Return hardcoded realistic lab guide documentation structure."""
+    course_title = course.get("title") or "Modern Architecture"
+    
     pages = [
         {
             "id": "overview",
@@ -90,11 +175,9 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             "content": "### Success Verification\n\nRun the automated test suite:\n```bash\nnpm run test:e2e\n```\n\n**Expected Output:**\nAll 14 integration tests should pass. If any fail, review the error logs and ensure the authentication headers are being passed correctly.",
         },
     ]
-    import random
-    reg_id = random.randint(1000, 9999)
     return {
         "guide": {
-            "title": f"{course_title} Lab Guide (ID: {reg_id})",
+            "title": f"{course_title} Lab Guide",
             "outcomes": [
                 "Understand the system architecture and runtime constraints",
                 "Complete the guided hands-on implementation steps",
@@ -102,7 +185,6 @@ def get_mock_guide_data(course_title: str = "Modern Architecture") -> dict:
             ],
             "pages": pages,
             "sections": pages,
-            "plan": "# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the local environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** Intermediate learners who have completed the prerequisites.\n**Estimated Duration:** 45 minutes.\n\n*(Approve this plan to generate the full guide content)*",
         }
     }
 
@@ -139,15 +221,20 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             payload = {}
 
         course = payload.get("course") or {}
+        lab_input = payload.get("lab_input") or {}
         title = course.get("title") or "Cloud Computing"
 
         # Determine route based on agent_type or URL path
         path = self.path.lower()
         is_pptx = "pptx" in self.agent_type or "pptx" in path or "ppt" in path
-        is_lab = "lab" in self.agent_type and "guide" not in self.agent_type or "generate-lab" in path
-        is_guide = "guide" in self.agent_type or "generate-guide" in path
+        is_lab_plan = "generate-lab/plan" in path
+        is_lab = ("lab" in self.agent_type and "guide" not in self.agent_type and not is_lab_plan) or ("generate-lab" in path and not is_lab_plan)
         
-        # Removed intentional delay to allow fast frontend testing
+        is_guide_plan = "generate-guide/plan" in path
+        is_guide = ("guide" in self.agent_type and not is_guide_plan) or ("generate-guide" in path and not is_guide_plan)
+        
+        # Intentional delay to simulate real LLM generation time and allow UI loaders to be visible
+        time.sleep(2)
 
         if is_pptx:
             pptx_bytes = get_mock_pptx_bytes()
@@ -167,8 +254,8 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
-        if is_lab:
-            data = get_mock_lab_data(title)
+        if is_lab_plan:
+            data = get_mock_lab_plan_data(course, lab_input)
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -178,13 +265,29 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             print(
                 f"  [Lab Agent :{self.server.server_address[1]}] Handled POST {self.path} "
-                f"for '{title}' -> returned 3 tasks",
+                f"for '{title}' -> returned lab plan",
                 flush=True,
             )
             return
 
-        if is_guide:
-            data = get_mock_guide_data(title)
+        if is_lab:
+            data = get_mock_lab_data(course, lab_input)
+            body = json.dumps(data).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            print(
+                f"  [Lab Agent :{self.server.server_address[1]}] Handled POST {self.path} "
+                f"for '{title}' -> returned lab artifacts",
+                flush=True,
+            )
+            return
+
+        if is_guide_plan:
+            data = get_mock_guide_plan_data(course, lab_input)
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -194,7 +297,22 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             print(
                 f"  [Lab Guide Agent :{self.server.server_address[1]}] Handled POST {self.path} "
-                f"for '{title}' -> returned 4 pages",
+                f"for '{title}' -> returned guide plan",
+                flush=True,
+            )
+            return
+
+        if is_guide:
+            guide_bytes, guide_mime = get_mock_guide_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", guide_mime)
+            self.send_header("Content-Length", str(len(guide_bytes)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(guide_bytes)
+            print(
+                f"  [Lab Guide Agent :{self.server.server_address[1]}] Handled POST {self.path} "
+                f"for '{title}' -> returned {guide_mime} guide ({len(guide_bytes)} bytes)",
                 flush=True,
             )
             return

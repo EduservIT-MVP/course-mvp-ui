@@ -7,7 +7,7 @@ export default function PlanGeneratingScreen({ course }) {
       <StatusBanner
         tone="busy"
         title="Generating course plan…"
-        message={course?.title ? `Working on “${course.title}”. Estimated time: 10-15 seconds.` : "This updates when the plan is ready. Estimated time: 10-15 seconds."}
+        message={course?.title ? `Working on “${course.title}”. This may take a minute.` : "This updates when the plan is ready. This may take a minute."}
       />
     </section>
   )

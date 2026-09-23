@@ -5,6 +5,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
   return {
     plugins: [react()],
+    optimizeDeps: {
+      // Force Vite to pre-bundle pdfjs-dist as a direct dep (was previously
+      // only a transitive dep of react-pdf — stale cache causes 504 errors)
+      include: ["pdfjs-dist"],
+    },
     server: {
       proxy: {
         "/api": {

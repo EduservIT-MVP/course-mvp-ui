@@ -11,7 +11,7 @@ export default function PptGeneratingScreen({ course }) {
 
   return (
     <section className="brief">
-      <StatusBanner tone="busy" title="Generating presentation…" message={detail + " Estimated time: 45-60 seconds."} />
+      <StatusBanner tone="busy" title={course?.stage?.includes("plan") ? "Drafting presentation plan…" : "Generating presentation…"} message={detail + " This may take a few minutes depending on the AI model."} />
     </section>
   )
 }

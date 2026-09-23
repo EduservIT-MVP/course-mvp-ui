@@ -16,6 +16,7 @@ from services.job_service import (
     job_generate_ppt_plan,
     job_generate_ppt,
     job_regenerate_slides,
+    job_generate_lab_plan,
     job_generate_lab,
     job_generate_guide_plan,
     job_generate_guide,
@@ -220,6 +221,43 @@ def ppt_slides_regenerate(course_id: str):
     return ok(course.to_dict())
 
 
+@courses_bp.post("/<course_id>/lab-plan/generate")
+@require_permission("lab:generate")
+def lab_plan_generate(course_id: str):
+    course = get_course(course_id)
+    if not course:
+        return err("Course not found.", "not_found", 404)
+    body = request.get_json(silent=True) or {}
+    if not course.can_transition_to("LAB_PLAN_GENERATING"):
+        return err(f"Cannot generate lab plan from status {course.status}.", "invalid_transition", 409)
+    if isinstance(body, dict) and body:
+        course.lab_plan = {**(course.lab_plan or {}), **body}
+    course.status = "LAB_PLAN_GENERATING"
+    course.failed_screen = 2
+    course.error = None
+    course.stage = "Generating lab plan"
+    course.updated_at = utcnow()
+    db.session.commit()
+    job_generate_lab_plan.delay(course.id, body if isinstance(body, dict) else {})
+    return ok(course.to_dict())
+
+@courses_bp.post("/<course_id>/lab-plan/regenerate")
+@require_permission("lab:regenerate")
+def lab_plan_regenerate(course_id: str):
+    return lab_plan_generate(course_id)
+
+@courses_bp.post("/<course_id>/lab-plan/approve")
+@require_permission("lab:approve")
+def lab_plan_approve(course_id: str):
+    course = get_course(course_id)
+    if not course:
+        return err("Course not found.", "not_found", 404)
+    if course.status != "LAB_PLAN_REVIEW":
+        return err(f"Plan can only be approved from LAB_PLAN_REVIEW (got {course.status}).", "invalid_transition", 409)
+    course.status = "LAB_PLAN_REVIEW"  # Keep it in review, the client will immediately call lab/generate
+    db.session.commit()
+    return ok(course.to_dict())
+
 @courses_bp.post("/<course_id>/lab/generate")
 @require_permission("lab:generate")
 def lab_generate(course_id: str):
@@ -227,7 +265,7 @@ def lab_generate(course_id: str):
     if not course:
         return err("Course not found.", "not_found", 404)
     body = request.get_json(silent=True) or {}
-    if course.status not in {"PPT_READY", "LAB_REVIEW", "FAILED"}:
+    if course.status not in {"LAB_PLAN_REVIEW", "FAILED"}:
         if not course.can_transition_to("LAB_GENERATING"):
             return err(f"Cannot generate lab from status {course.status}.", "invalid_transition", 409)
     if isinstance(body, dict) and body:
@@ -235,7 +273,7 @@ def lab_generate(course_id: str):
     course.status = "LAB_GENERATING"
     course.failed_screen = 2
     course.error = None
-    course.stage = "Generating lab"
+    course.stage = "Generating lab artifacts"
     course.updated_at = utcnow()
     db.session.commit()
     job_generate_lab.delay(course.id, body if isinstance(body, dict) else {})

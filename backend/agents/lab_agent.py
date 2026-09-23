@@ -22,11 +22,66 @@ def _split_list(text: str | None) -> list[str]:
     return [p.strip() for p in str(text).replace(";", "\n").replace(",", "\n").split("\n") if p.strip()]
 
 
+def agent_generate_lab_plan(course: dict, lab_input: dict | None = None) -> dict:
+    """
+    Generate practical lab exercise plan.
+    If AGENT_LAB_PLAN_URL is configured, calls the external Lab agent server.
+    Otherwise generates structured lab exercise locally as fallback.
+    """
+    if AGENT_LAB_URL:
+        payload = {"course": course, "lab_input": lab_input or {}}
+        res = _call_agent_json("LAB_PLAN", f"{AGENT_LAB_URL.rstrip('/')}/plan", payload)
+        if isinstance(res, dict) and "lab" in res and isinstance(res["lab"], dict):
+            return res["lab"]
+        if isinstance(res, dict):
+            return res
+        raise ValueError(f"Agent [LAB_PLAN] returned invalid response format: {type(res)}")
+
+    time.sleep(JOB_DELAY)
+    lab_input = lab_input or {}
+    title = (course.get("title") or "Generic Course").strip() or "Generic Course"
+    
+    raw_criteria = _split_list(course.get("objectives"))
+    if len(raw_criteria) >= 2 or (len(raw_criteria) == 1 and len(raw_criteria[0]) > 28):
+        criteria = raw_criteria
+    else:
+        criteria = [
+            "The environment is properly initialized",
+            "The core logic correctly implements the required features",
+            "All test assertions pass successfully",
+        ]
+    scenario = (lab_input.get("scenario") or "").strip() or f"{title} Guided Exercise"
+    environment = (lab_input.get("environment") or "").strip() or "Node.js / Express"
+    
+    sample_readme = (
+        f"# {title} - Hands-on Lab\n\n"
+        f"**Summary:** This lab provides a guided, hands-on coding scenario for **{title}**.\n\n"
+        "**Target Persona:** Intermediate Developer / Engineer\n\n"
+        "## Core Objectives & Success Criteria\n"
+        + "".join(f"- {c}\n" for c in criteria) + "\n"
+        "## Architecture & Environment\n"
+        f"- **Runtime Environment:** {environment}\n"
+        "- **Test Runner:** Mocha / Jest\n"
+        "- **Simulated Services:** Mock Gateway, Local State Store\n\n"
+        "## Milestone Tasks\n"
+        "1. **Environment Initialization:** Validate configuration files and verify dependencies.\n"
+        "2. **Feature Implementation:** Implement the handler methods according to the specification.\n"
+        "3. **Unit & Integration Verification:** Run automated test assertions to confirm criteria.\n\n"
+        "## Verification Command\n"
+        "```bash\nnpm test\n```\n"
+    )
+
+    return {
+        "raw": sample_readme,
+        "estimated_time": 45,
+        "environment": environment,
+    }
+
 def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
     """
-    Generate practical lab exercise and its artifacts.
+    Generate practical lab artifacts.
     If AGENT_LAB_URL is configured, calls the external Lab agent server.
-    Otherwise generates structured lab exercise and dynamic artifacts locally as fallback.
+    Otherwise generates structured lab artifacts locally as fallback.
     """
     if AGENT_LAB_URL:
         payload = {"course": course, "lab_input": lab_input or {}}
@@ -122,9 +177,12 @@ def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
         },
     ]
 
+    # Combine with existing plan data if present
+    existing_plan = course.get("lab_plan") or {}
+    
     return {
-        "raw": sample_readme,
-        "estimated_time": 45,
-        "environment": environment,
+        "raw": existing_plan.get("raw") or "No plan provided.",
+        "estimated_time": existing_plan.get("estimated_time") or 45,
+        "environment": existing_plan.get("environment") or "Local",
         "artifacts": artifacts,
     }

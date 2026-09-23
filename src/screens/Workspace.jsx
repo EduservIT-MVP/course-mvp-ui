@@ -199,9 +199,27 @@ export default function Workspace() {
 
   async function handleStartLab() {
     try {
-      await run(() => labService.generate(course.id, lab))
+      await run(() => labService.generatePlan(course.id, lab))
     } catch (err) {
       showToast(messageFromError(err, "Could not start lab generation."))
+    }
+  }
+
+  async function handleApproveLabPlan() {
+    try {
+      await run(() => labService.approvePlan(course.id))
+      showToast("Generating lab artifacts…")
+    } catch (err) {
+      showToast(messageFromError(err, "Could not approve the lab plan."))
+    }
+  }
+
+  async function handleRegenerateLabPlan() {
+    try {
+      await run(() => labService.regeneratePlan(course.id))
+      showToast("Regenerating lab plan…")
+    } catch (err) {
+      showToast(messageFromError(err, "Could not regenerate the lab plan."))
     }
   }
 
@@ -389,19 +407,19 @@ export default function Workspace() {
   const labNode = (
     <LabGeneration
       course={course}
-      lab={course?.lab}
+      lab={course?.lab?.raw ? course.lab : course?.labPlan}
       status={status}
       busy={busy}
       generating={status === WORKFLOW.LAB_GENERATING || status === WORKFLOW.LAB_PLAN_GENERATING}
       failed={failed}
       error={errorMessage || course?.error}
-      onApproveLab={handleApproveLab}
+      onApproveLab={status === WORKFLOW.LAB_PLAN_REVIEW ? handleApproveLabPlan : handleApproveLab}
       onStartGuide={handleStartGuide}
-      onRegenerate={handleRegenerateLab}
+      onRegenerate={status === WORKFLOW.LAB_PLAN_REVIEW ? handleRegenerateLabPlan : handleRegenerateLab}
       onDownloadArtifact={handleDownload}
       canApproveLab={!isPreview && can("lab:approve") && (status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_PLAN_REVIEW)}
       canStartGuide={!isPreview && can("guide:generate") && (status === WORKFLOW.LAB_APPROVED || status === WORKFLOW.LAB_REVIEW)}
-      canRegenerate={!isPreview && can("lab:regenerate") && (Boolean(course?.lab) || status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_APPROVED || failed)}
+      canRegenerate={!isPreview && can("lab:regenerate") && (Boolean(course?.lab) || Boolean(course?.labPlan) || status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_APPROVED || status === WORKFLOW.LAB_PLAN_REVIEW || failed)}
     />
   )
 

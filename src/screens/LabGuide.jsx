@@ -1,9 +1,12 @@
+import { useState } from "react"
 import Button from "../components/Button"
 import StatusBanner from "../components/StatusBanner"
 import MarkdownViewer from "../components/MarkdownViewer"
+import PdfViewer from "../components/PdfViewer"
 import { downloadBlob } from "../lib/download"
+import { requestBlob } from "../api/client"
 import { WORKFLOW } from "../workflow/states"
-import { BookOpen, Clock, Layers, RefreshCw, CheckCircle2, Sparkles, FileText } from "lucide-react"
+import { BookOpen, Clock, Layers, RefreshCw, Sparkles, FileText } from "lucide-react"
 
 /** 
  * LabGuide step (3-stage flow):
@@ -29,27 +32,34 @@ export default function LabGuide({
   onFinish,
 }) {
   const isComplete = status === WORKFLOW.COMPLETE
-  const baseSections = guide?.sections || []
-  const hasGuide = baseSections.length > 0 && isComplete
-  
+  const guideArtifact = course?.artifacts?.find(a => a.type === "lab-guide")
+  const hasGuide = Boolean(guideArtifact) && isComplete
+
   const handleDownloadGuide = () => {
-    if (!baseSections.length) return
-    const content = baseSections.map(s => `## ${s.title}\n\n${s.content}`).join("\n\n")
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" })
-    downloadBlob(blob, `${course?.title || "course"}-lab-guide.md`)
+    if (!guideArtifact) return
+    requestBlob(`/courses/${course.id}/artifacts/${guideArtifact.id}/download`)
+      .then(({ blob, filename }) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = filename || guideArtifact.name || "Lab_Guide.pdf"
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+      .catch(() => {})
   }
-  
-  const sections = baseSections
-  const page = sections.find((item) => item.id === section) || sections[0]
 
   // STAGE B: Generating / Error
   if (generating) {
+    const isPlan = status === WORKFLOW.LAB_GUIDE_PLAN_GENERATING;
     return (
       <section className="guide">
         <StatusBanner 
           tone="busy" 
-          title="Generating full lab guide…" 
-          message="Building learner documentation, walkthrough steps, and rubrics. Estimated time: 10-15 seconds." 
+          title={isPlan ? "Drafting guide structure…" : "Generating full lab guide…"} 
+          message={isPlan 
+            ? "The AI agent is assembling the step-by-step chapter outline. This may take a minute." 
+            : "Building detailed learner documentation, walkthrough steps, and verification rubrics. This may take a few minutes."} 
         />
       </section>
     )
@@ -81,42 +91,40 @@ export default function LabGuide({
       <section className="guide">
         <div className="guide-workspace">
           <nav className="guide-nav" aria-label="Lab guide">
-            {sections.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`guide-section${item.id === (page?.id || section) ? " is-active" : ""}`}
-                onClick={() => onSelectSection(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              className="guide-section is-active"
+            >
+              <FileText size={14} style={{ marginRight: 6 }} />
+              {guideArtifact.name || "Lab_Guide.pdf"}
+            </button>
           </nav>
           
-          <article className="guide-page">
-            {page ? (
-              <header className="guide-page-header">
-                {page.kicker ? <p className="guide-kicker">{page.kicker}</p> : null}
-                <h2>{page.title}</h2>
-                {page.lede ? <p className="lede">{page.lede}</p> : null}
-              </header>
-            ) : null}
-            {page?.content ? (
-              <div className="guide-page-content" style={{ marginTop: 24 }}>
-                <MarkdownViewer content={page.content} />
+          <article className="guide-page" style={{ padding: 0 }}>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)", fontWeight: 500 }}>
+                <FileText size={14} />
+                <span>{guideArtifact.name || "Lab_Guide.pdf"}</span>
               </div>
-            ) : null}
-            
-            {onFinish ? (
-              <div className="actions" style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 10 }}>
                 <Button variant="secondary" onClick={handleDownloadGuide}>
-                  Download full guide
+                  Download PDF
                 </Button>
-                <Button variant="accent" onClick={onFinish}>
-                  Finish &amp; go to overview →
-                </Button>
+                {onFinish ? (
+                  <Button variant="accent" onClick={onFinish}>
+                    Finish &amp; go to overview →
+                  </Button>
+                ) : null}
               </div>
-            ) : null}
+            </div>
+
+            <div style={{ height: "calc(100vh - 170px)", overflow: "auto" }}>
+              <PdfViewer
+                courseId={course.id}
+                artifactId={guideArtifact.id}
+                artifactName={guideArtifact.name}
+              />
+            </div>
           </article>
         </div>
       </section>

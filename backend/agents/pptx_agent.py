@@ -55,7 +55,6 @@ def agent_build_pptx(course: dict) -> bytes:
     return template.read_bytes()
 import re
 import time
-import random
 
 
 def _split_list(text: str | None) -> list[str]:
@@ -197,7 +196,6 @@ def _compose_course_content_agent_text(course: dict) -> str:
 - Sequence slides so each step unlocks the next decision.
 - Reserve time for questions before the hands-on lab.
 - End the flow with a short "what good looks like" checklist.
-- (Regeneration ID: {random.randint(1000, 9999)})
 
 ** Remember This **
 - {topic} matters because practitioners must make better decisions under pressure.
