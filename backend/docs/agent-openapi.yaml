@@ -109,10 +109,6 @@ paths:
                 title: "Event-Driven Microservices"
                 topics: "Kafka\nCQRS"
                 objectives: "Implement Kafka consumer idempotency"
-              lab_input:
-                scenario: "Implement Idempotent Consumer in Node.js"
-                environment: "Node.js 20 / Docker"
-                assets: "Kafka starter container"
       responses:
         '200':
           description: Lab metadata and optional code artifacts
@@ -348,16 +344,6 @@ components:
       properties:
         course:
           $ref: '#/components/schemas/CourseBrief'
-        lab_input:
-          type: object
-          description: Optional extra context for lab generation
-          properties:
-            scenario:
-              type: string
-            environment:
-              type: string
-            assets:
-              type: string
 
     LabGenerateResponse:
       type: object

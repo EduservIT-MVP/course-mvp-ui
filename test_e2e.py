@@ -77,8 +77,8 @@ make_request("POST", f"/courses/{course_id}/ppt/generate", {"plan": {}})
 wait_for_status(course_id, "PPT_READY")
 
 # 4. Generate Lab Plan
-print_step("Generating Lab Plan...")
-make_request("POST", f"/courses/{course_id}/lab-plan/generate", {})
+print_step("Generating Lab Plan with custom input...")
+make_request("POST", f"/courses/{course_id}/lab-plan/generate", {"environment": "My Custom Env"})
 wait_for_status(course_id, "LAB_PLAN_REVIEW")
 
 # 4b. Generate Lab (Approve Plan)

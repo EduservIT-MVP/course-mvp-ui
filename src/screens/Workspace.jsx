@@ -419,7 +419,7 @@ export default function Workspace() {
       onDownloadArtifact={handleDownload}
       canApproveLab={!isPreview && can("lab:approve") && (status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_PLAN_REVIEW)}
       canStartGuide={!isPreview && can("guide:generate") && (status === WORKFLOW.LAB_APPROVED || status === WORKFLOW.LAB_REVIEW)}
-      canRegenerate={!isPreview && can("lab:regenerate") && (Boolean(course?.lab) || Boolean(course?.labPlan) || status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_APPROVED || status === WORKFLOW.LAB_PLAN_REVIEW || failed)}
+      canRegenerate={!isPreview && can("lab:regenerate") && status !== WORKFLOW.LAB_APPROVED && (Boolean(course?.lab) || Boolean(course?.labPlan) || status === WORKFLOW.LAB_REVIEW || status === WORKFLOW.LAB_PLAN_REVIEW || failed)}
     />
   )
 

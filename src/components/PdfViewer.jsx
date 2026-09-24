@@ -5,7 +5,7 @@ import Button from "./Button"
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, FileText, File } from "lucide-react"
 
 // Worker served as a static file from public/ — no CDN, no import.meta.url transforms
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs?v=2"
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 const DOC_MIME  = "application/msword"

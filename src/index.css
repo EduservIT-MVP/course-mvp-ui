@@ -163,16 +163,17 @@ img {
 
 /* Primary Button: Standard Enterprise Navy */
 .btn-primary {
-  background-color: var(--navy);
-  color: var(--white);
+  background-color: #2563eb;
+  /* Muted enterprise primary blue */
+  color: #ffffff;
   border-color: transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--navy-light);
+  background-color: #1d4ed8;
   border-color: transparent;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
 
@@ -181,17 +182,18 @@ img {
   box-shadow: none;
 }
 
-/* Accent / CTA Button: Standard Enterprise Blue */
+/* Accent / CTA Button: Enterprise Amber */
 .btn-accent {
-  background-color: #0066cc; /* Muted enterprise action blue */
+  background-color: #d97706;
+  /* Muted enterprise amber */
   color: #ffffff;
   border-color: transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .btn-accent:hover:not(:disabled) {
-  background-color: #0056b3;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #b45309;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
 
@@ -202,38 +204,41 @@ img {
 
 /* Secondary Button: Standard Enterprise Outline */
 .btn-secondary {
-  background-color: var(--white);
-  color: var(--ink);
-  border: 1px solid #d1d5db; /* Standard gray border */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: #f9fafb;
+  color: #374151;
+  /* Muted text */
+  border: 1px solid #e5e7eb;
+  /* Soft border */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #f9fafb;
-  color: var(--navy);
-  border-color: #9ca3af;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transform: none;
 }
 
 .btn-secondary:active:not(:disabled) {
   transform: scale(0.98);
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
 }
 
 /* Destructive Button: Standard Enterprise Red */
 .btn-danger,
 .btn-error {
-  background-color: #d93025;
+  background-color: #dc2626;
+  /* Softer red */
   color: #ffffff;
   border-color: transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .btn-danger:hover:not(:disabled),
 .btn-error:hover:not(:disabled) {
-  background-color: #b3261e;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #b91c1c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
 
@@ -247,20 +252,23 @@ img {
 .btn-ghost,
 .text-btn {
   background-color: transparent;
-  color: #4b5563; /* muted gray-blue */
+  color: #6b7280;
+  /* muted gray */
   border-color: transparent;
   padding: 0 12px;
   height: 34px;
   min-height: 34px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 590;
+  font-weight: 500;
+  /* Lower contrast weight */
 }
 
 .btn-ghost:hover:not(:disabled),
 .text-btn:hover:not(:disabled) {
   background-color: #f3f4f6;
-  color: var(--navy);
+  /* Subtle hover */
+  color: #374151;
   transform: none;
 }
 
@@ -860,8 +868,8 @@ label.field {
   font-weight: 400;
 }
 
-.field-floating input:focus + label,
-.field-floating input:not(:placeholder-shown) + label {
+.field-floating input:focus+label,
+.field-floating input:not(:placeholder-shown)+label {
   top: 0px;
   font-size: 11px;
   font-weight: 500;
@@ -1412,9 +1420,9 @@ label.field {
   flex: 1;
   min-height: 0;
   width: 100%;
-  background: #110e2e;
+  background: #ffffff;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
+
   overflow: hidden;
   position: relative;
   display: flex;
@@ -1450,7 +1458,8 @@ label.field {
   justify-content: center;
   overflow: hidden;
   padding: 16px;
-  box-sizing: border-box;
+  box-sizing: ;
+
 }
 
 .pptx-viewer-stage svg {
@@ -2231,7 +2240,7 @@ label.field {
 
 .dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
   margin-top: 32px;
 }
@@ -2385,6 +2394,7 @@ label.field {
     grid-template-columns: 1fr;
   }
 }
+
 /* ==========================================================================
    COURSE OVERVIEW REFACTOR
    ========================================================================== */
@@ -2561,7 +2571,8 @@ label.field {
   background: transparent !important;
   user-select: none !important;
   -webkit-user-select: none !important;
-  pointer-events: none; /* Prevent interaction/hover entirely */
+  pointer-events: none;
+  /* Prevent interaction/hover entirely */
 }
 
 /* ==========================================================================
@@ -2596,6 +2607,7 @@ label.field {
   ::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.15);
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.3);
   }
@@ -2752,9 +2764,19 @@ label.field {
   line-height: 1.3;
 }
 
-.docx-viewer-content h1 { font-size: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-.docx-viewer-content h2 { font-size: 20px; }
-.docx-viewer-content h3 { font-size: 17px; }
+.docx-viewer-content h1 {
+  font-size: 24px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 10px;
+}
+
+.docx-viewer-content h2 {
+  font-size: 20px;
+}
+
+.docx-viewer-content h3 {
+  font-size: 17px;
+}
 
 .docx-viewer-content p {
   margin: 0 0 1em;
@@ -2835,4 +2857,3 @@ label.field {
   border-radius: 4px;
   margin: 8px 0;
 }
-

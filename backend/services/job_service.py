@@ -113,7 +113,9 @@ def job_generate_lab_plan(course_id: str, lab_input: dict | None = None) -> None
         return
     try:
         merged = {**(course.lab_plan or {}), **(lab_input or {})}
-        course.lab_plan = agent_generate_lab_plan(course.to_dict(), merged)
+        course.lab_plan = merged
+        agent_output = agent_generate_lab_plan(course.to_dict())
+        course.lab_plan = {**merged, **(agent_output or {})}
         course.status = "LAB_PLAN_REVIEW"
         course.stage = "Lab plan ready for review"
         course.error = None
@@ -130,7 +132,9 @@ def job_generate_lab(course_id: str, lab_input: dict | None = None) -> None:
         return
     try:
         merged = {**(course.lab or {}), **(lab_input or {})}
-        course.lab = agent_generate_lab(course.to_dict(), merged)
+        course.lab = merged
+        agent_output = agent_generate_lab(course.to_dict())
+        course.lab = {**merged, **(agent_output or {})}
         if course.lab:
             try:
                 write_lab_artifacts(course)

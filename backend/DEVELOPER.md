@@ -179,11 +179,6 @@ This agent uses a two-step flow: Plan Generation, then Artifact Generation.
     "level": "Intermediate",
     "objectives": "Design fault-tolerant services; Implement distributed traces",
     "topics": "Service Mesh; Resilience Patterns; Distributed Tracing"
-  },
-  "lab_input": {
-    "scenario": "Deploy and trace microservices in Kubernetes",
-    "environment": "Kubernetes Minikube + Istio",
-    "assets": "Starter repo"
   }
 }
 ```
@@ -372,11 +367,11 @@ app.post('/build-pptx', (req, res) => {
 
 // 2. Lab Agent
 app.post('/generate-lab', (req, res) => {
-  const { course, lab_input } = req.body;
+  const { course } = req.body;
   res.json({
     lab: {
-      scenario: lab_input?.scenario || course?.title,
-      environment: lab_input?.environment || 'Cloud IDE',
+      scenario: course?.title,
+      environment: course?.environment || 'Cloud IDE',
       assets: 'Starter repo',
       tasks: [
         { n: 1, title: 'Environment Setup', detail: 'Prepare workspace', time: '10 min' },

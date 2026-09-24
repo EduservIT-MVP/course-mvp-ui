@@ -61,12 +61,13 @@ def get_mock_guide_bytes() -> tuple[bytes, str]:
     return MINIMAL_PDF_BYTES, "application/pdf"
 
 
-def get_mock_lab_plan_data(course: dict, lab_input: dict) -> dict:
+def get_mock_lab_plan_data(course: dict) -> dict:
     """Return realistic lab plan structure without artifacts."""
     course_title = course.get("title") or "Modern Architecture"
     audience = course.get("audience") or "Learner"
-    env = lab_input.get("environment") or course.get("environment") or "Standard Browser Workspace"
-    scenario = lab_input.get("scenario") or "Implement the core concepts"
+    lab_plan = course.get("labPlan") or {}
+    env = lab_plan.get("environment") or course.get("environment") or "Standard Browser Workspace"
+    scenario = lab_plan.get("scenario") or "Implement the core concepts"
     duration = course.get("duration") or "50 minutes"
     
     # Try to extract just the number if duration is a string like "45 minutes"
@@ -91,14 +92,15 @@ def get_mock_lab_plan_data(course: dict, lab_input: dict) -> dict:
             "raw": sample_readme,
             "estimated_time": est_time,
             "environment": env,
+            "scenario": scenario,
         }
     }
 
 
-def get_mock_lab_data(course: dict, lab_input: dict) -> dict:
+def get_mock_lab_data(course: dict) -> dict:
     """Return realistic lab exercise structure with artifacts."""
     course_title = course.get("title") or "Modern Architecture"
-    plan_data = get_mock_lab_plan_data(course, lab_input)
+    plan_data = get_mock_lab_plan_data(course)
     
     # Overwrite the short plan raw text with the fully fleshed-out lab manual content
     plan_data["lab"]["raw"] = (
@@ -127,19 +129,23 @@ def get_mock_lab_data(course: dict, lab_input: dict) -> dict:
 
 
 
-def get_mock_guide_plan_data(course: dict, lab_input: dict) -> dict:
+def get_mock_guide_plan_data(course: dict, lab: dict) -> dict:
     """Return realistic lab guide plan."""
     course_title = course.get("title") or "Modern Architecture"
     audience = course.get("audience") or "Learner"
     duration = course.get("duration") or "50 minutes"
+    env = lab.get("environment") or "Local Environment"
+    scenario = lab.get("scenario") or "Implementation task"
     
     return {
-        "plan": f"# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the local environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** {audience}\n**Estimated Duration:** {duration}."
+        "plan": f"# Lab Guide Plan\n\nThis plan outlines the structure of the final learner guide. The guide will consist of 4 main sections:\n\n1. **Overview**: High-level summary of the lab goals and prerequisites.\n2. **Setup**: Instructions for preparing the {env} environment and dependencies.\n3. **Walkthrough**: Step-by-step execution tasks for the learner to follow for the scenario: {scenario}.\n4. **Verification**: Automated and manual checks to ensure the learner successfully completed the lab.\n\n**Target Audience:** {audience}\n**Estimated Duration:** {duration}."
     }
 
-def get_mock_guide_data(course: dict, lab_input: dict) -> dict:
+def get_mock_guide_data(course: dict, lab: dict) -> dict:
     """Return hardcoded realistic lab guide documentation structure."""
     course_title = course.get("title") or "Modern Architecture"
+    env = lab.get("environment") or "Local Environment"
+    scenario = lab.get("scenario") or "Implementation task"
     
     pages = [
         {
@@ -147,7 +153,7 @@ def get_mock_guide_data(course: dict, lab_input: dict) -> dict:
             "label": "Overview",
             "kicker": "GETTING STARTED",
             "title": f"Lab Overview: {course_title}",
-            "lede": "Welcome to the hands-on lab. In this exercise, you will put theoretical concepts into practice by completing a guided implementation.",
+            "lede": f"Welcome to the hands-on lab. In this exercise, you will put theoretical concepts into practice by completing a guided implementation for: {scenario}.",
             "content": "### Welcome to the Lab\n\nThis lab is designed to give you practical experience with the concepts covered in this course.\n\n**Prerequisites**\n- Basic understanding of the architecture\n- Access to the lab environment\n\n**Expected Time**\n- 45 minutes",
         },
         {
@@ -155,8 +161,8 @@ def get_mock_guide_data(course: dict, lab_input: dict) -> dict:
             "label": "Setup",
             "kicker": "ENVIRONMENT",
             "title": "Workspace & Tooling Configuration",
-            "lede": "Confirm your containerized workspace is online and environment variables are properly initialized before starting the tasks.",
-            "content": "### Environment Setup\n\n1. Open your terminal.\n2. Run `docker-compose up -d` to start the required services.\n3. Verify that all containers are running successfully using `docker ps`.\n4. Initialize the database by running `npm run db:setup`.",
+            "lede": f"Confirm your {env} workspace is online and environment variables are properly initialized before starting the tasks.",
+            "content": f"### Environment Setup\n\n1. Open your terminal.\n2. Ensure your {env} is ready.\n3. Verify that all dependencies are running successfully.\n4. Initialize the database by running `npm run db:setup`.",
         },
         {
             "id": "walkthrough",
@@ -221,7 +227,7 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             payload = {}
 
         course = payload.get("course") or {}
-        lab_input = payload.get("lab_input") or {}
+        lab = payload.get("lab") or {}
         title = course.get("title") or "Cloud Computing"
 
         # Determine route based on agent_type or URL path
@@ -255,7 +261,7 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if is_lab_plan:
-            data = get_mock_lab_plan_data(course, lab_input)
+            data = get_mock_lab_plan_data(course)
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -271,7 +277,7 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if is_lab:
-            data = get_mock_lab_data(course, lab_input)
+            data = get_mock_lab_data(course)
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -287,7 +293,7 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if is_guide_plan:
-            data = get_mock_guide_plan_data(course, lab_input)
+            data = get_mock_guide_plan_data(course, lab)
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -303,6 +309,8 @@ class AgentHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if is_guide:
+            # We don't generate a binary guide for testing locally via mock here, but normally get_mock_guide_bytes is returned.
+            # Using lab parameters is enough for plan step
             guide_bytes, guide_mime = get_mock_guide_bytes()
             self.send_response(200)
             self.send_header("Content-Type", guide_mime)

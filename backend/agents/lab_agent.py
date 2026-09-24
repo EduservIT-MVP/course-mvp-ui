@@ -22,14 +22,14 @@ def _split_list(text: str | None) -> list[str]:
     return [p.strip() for p in str(text).replace(";", "\n").replace(",", "\n").split("\n") if p.strip()]
 
 
-def agent_generate_lab_plan(course: dict, lab_input: dict | None = None) -> dict:
+def agent_generate_lab_plan(course: dict) -> dict:
     """
     Generate practical lab exercise plan.
     If AGENT_LAB_PLAN_URL is configured, calls the external Lab agent server.
     Otherwise generates structured lab exercise locally as fallback.
     """
     if AGENT_LAB_URL:
-        payload = {"course": course, "lab_input": lab_input or {}}
+        payload = {"course": course}
         res = _call_agent_json("LAB_PLAN", f"{AGENT_LAB_URL.rstrip('/')}/plan", payload)
         if isinstance(res, dict) and "lab" in res and isinstance(res["lab"], dict):
             return res["lab"]
@@ -38,7 +38,6 @@ def agent_generate_lab_plan(course: dict, lab_input: dict | None = None) -> dict
         raise ValueError(f"Agent [LAB_PLAN] returned invalid response format: {type(res)}")
 
     time.sleep(JOB_DELAY)
-    lab_input = lab_input or {}
     title = (course.get("title") or "Generic Course").strip() or "Generic Course"
     
     raw_criteria = _split_list(course.get("objectives"))
@@ -50,8 +49,10 @@ def agent_generate_lab_plan(course: dict, lab_input: dict | None = None) -> dict
             "The core logic correctly implements the required features",
             "All test assertions pass successfully",
         ]
-    scenario = (lab_input.get("scenario") or "").strip() or f"{title} Guided Exercise"
-    environment = (lab_input.get("environment") or "").strip() or "Node.js / Express"
+    
+    # Try to extract from course or use reasonable defaults
+    scenario = course.get("scenario", f"{title} Guided Exercise")
+    environment = course.get("environment", "Node.js / Express")
     
     sample_readme = (
         f"# {title} - Hands-on Lab\n\n"
@@ -72,19 +73,21 @@ def agent_generate_lab_plan(course: dict, lab_input: dict | None = None) -> dict
     )
 
     return {
-        "raw": sample_readme,
-        "estimated_time": 45,
+        "title": title,
+        "scenario": scenario,
         "environment": environment,
+        "estimated_time": 45,
+        "raw": sample_readme,
     }
 
-def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
+def agent_generate_lab(course: dict) -> dict:
     """
     Generate practical lab artifacts.
     If AGENT_LAB_URL is configured, calls the external Lab agent server.
     Otherwise generates structured lab artifacts locally as fallback.
     """
     if AGENT_LAB_URL:
-        payload = {"course": course, "lab_input": lab_input or {}}
+        payload = {"course": course}
         res = _call_agent_json("LAB", AGENT_LAB_URL, payload)
         if isinstance(res, dict) and "lab" in res and isinstance(res["lab"], dict):
             return res["lab"]
@@ -93,7 +96,6 @@ def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
         raise ValueError(f"Agent [LAB] returned invalid response format: {type(res)}")
 
     time.sleep(JOB_DELAY)
-    lab_input = lab_input or {}
     title = (course.get("title") or "Generic Course").strip() or "Generic Course"
     slug = _slug(title)
     
@@ -106,8 +108,8 @@ def agent_generate_lab(course: dict, lab_input: dict | None = None) -> dict:
             "The core logic correctly implements the required features",
             "All test assertions pass successfully",
         ]
-    scenario = (lab_input.get("scenario") or "").strip() or f"{title} Guided Exercise"
-    environment = (lab_input.get("environment") or "").strip() or "Node.js / Express"
+    scenario = course.get("scenario", f"{title} Guided Exercise")
+    environment = course.get("environment", "Node.js / Express")
     
     sample_readme = (
         f"# {title} - Hands-on Lab\n\n"
